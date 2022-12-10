@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+
+# MPDK written by Mattia Bonzi <mattia@mattiabonzi.it>
+# Utility script for the development of Moodle's plugin
+# Use at your own risk.
+
+#This file
+THISFILE=$( readlink "${BASH_SOURCE[0]}" ) || THISFILE="${BASH_SOURCE[0]}"
+#MPDK root (our home)
+export MPDK_ROOT="$( cd "$( dirname "$THISFILE" )" && pwd -P )"
+#Asset root 
+ASSET=$MPDK_ROOT/.asset
+#Instance root (NULL if not passed via optoins "-i")
+IROOT=""
+#Default instance web port
+WEBPORT=8000
+#Default instance database port
+DBPORT=8001
+#L#Eventually load the config file
+[ -f "$ASSET/config" ] && source $ASSET/config
+#Eventually load the own created plugin list
+[ -f "$ASSET/myplugin" ] && MYPLUGIN="$(cat $ASSET/myplugin)"
+#Eventually load the global env file
+[ -f "$MPDK_ROOT/env" ] && source $MPDK_ROOT/env
+#Load the functions
+source $ASSET/functions
+
+#Parse global options
+while getopts "n:i:hH" options; do
+    case "${options}" in
+        i ) IROOT=${OPTARG};shift 2;;
+        n ) IROOT=$MPDK_ROOT/${OPTARG}/moodle;shift 2;;
+        h ) mpdk_help; exit;;
+        H ) mpdk_extendedhelp; exit;;
+    esac
+done  
+
+#If the instance root is NOT defined, try to guess it
+if [ -z "$IROOT" ]; then
+    if [ -f $(pwd)"/.mpdkinstance" ]; then
+        IROOT=$(pwd)
+    elif [ -f $(pwd)"/moodle/.mpdkinstance" ]; then
+        IROOT=$(pwd)"/moodle"
+    else
+        back="../"
+        for (( i=1; i<=20; i++ ));do
+            p="$(realpath $(pwd)"/$back")"
+            if [ -f "$p/.mpdkinstance" ];then
+                IROOT="$p";break
+            fi
+            if [ -f "$p/moodle/.mpdkinstance" ]; then
+                IROOT="$p/moodle";break
+            fi
+            back+='../'
+        done
+    fi
+fi
+
+#If the instance root is defined, export ENV needed by moodle-docker
+if  [ -n "$IROOT" ];then
+    [ "${IROOT:${#IROOT}-1:1}" != '/' ] && IROOT+='/'
+    mpdk_requireinstance
+    echo "pippopluto"
+    export MOODLE_DOCKER_WWWROOT=$IROOT
+    export MOODLE_DOCKER_DB=pgsql
+    export COMPOSE_PROJECT_NAME="$(basename "$(dirname $IROOT)")"
+    #Eventually load the instance env file
+    [ -f "$MPDK_ROOT/env" ] && source $MPDK_ROOT/env
+fi
+#Export ENV for redirect moosh wget call to this script (for caching Moodle version)
+export MOOSH_WGET="$MPDK_ROOT/mpdk download-moodle"
+#Parse command
+COMMAND=$1;shift
+
+#Parse first command that do not require an instance to be defined
+case $COMMAND in
+    new ) mpdk_new $@ & mpdk_spinner $!;exit;;
+    download-moodle ) mpdk_download_moodle $@;exit;;
+    install ) mpdk_install $@;exit;;
+    drop ) mpdk_drop $@;exit;;
+    newplugin ) mpdk_newplugin $@;exit;;
+    myplugin ) mpdk_myplugin $@;exit;;
+    addplugin ) mpdk_addplugin $@;exit;;
+    stop ) mpdk_downstopremove -s $@;exit;;
+    down ) mpdk_downstopremove $@;exit;;
+    remove ) mpdk_downstopremove -r $@;exit;;
+    ps ) mpdk_ps $@;exit;exit;;
+esac
+
+#Check if the instance root is defined
+if  [ -z "$IROOT" ];then
+    echo "An instance must be defined to run this command!"
+    mpdk_usage
+fi
+
+#Parse all the other commands
+case $COMMAND in
+    run ) mpdk_run $@;;
+    test ) mpdk_test $@;;
+    sh ) mpdk_sh $@;;
+    sniff ) mpdk_sniff $@;;
+    * ) mpdk_usage;;
+esac
