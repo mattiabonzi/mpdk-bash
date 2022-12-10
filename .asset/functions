@@ -30,7 +30,7 @@ mpdk_install() {
     #Moosh patch (caching Moodle version)
     cd "$ASSET"/moosh/Moosh/Command/Generic/Download/ && patch < "$ASSET"/patches/DownloadMoodle.php.patch
     #Moodle-docker patch (adding Moosh)
-    #cd "$ASSET"/moodle-docker && patch < "$ASSET"/patches/base.yml.patch
+    cd "$ASSET"/moodle-docker && patch < "$ASSET"/patches/base.yml.patch
     cp "$ASSET"/dockerfile "$ASSET"/moodle-docker/dockerfile
     #Set the copyright string (for newly created plugin)
     while true; do
