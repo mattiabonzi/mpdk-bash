@@ -1,0 +1,18 @@
+--- base.yml	2022-12-10 16:58:46
++++ base_patched.yml	2022-12-09 16:19:15
+@@ -1,12 +1,14 @@
+ version: "2"
+ services:
+   webserver:
+-    image: "moodlehq/moodle-php-apache:${MOODLE_DOCKER_PHP_VERSION}"
++    build: .
++    image: moodle-php-apache-python-node
+     depends_on:
+       - db
+     volumes:
+       - "${MOODLE_DOCKER_WWWROOT}:/var/www/html"
+       - "${ASSETDIR}/web/apache2_faildumps.conf:/etc/apache2/conf-enabled/apache2_faildumps.conf"
++      - "${MPDK_ROOT}/.asset/moosh:/opt/moosh"
+     environment:
+       MOODLE_DOCKER_DBNAME: moodle
+       MOODLE_DOCKER_DBUSER: moodle
