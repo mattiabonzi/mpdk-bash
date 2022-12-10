@@ -233,8 +233,6 @@ If the instance is created without the option "-t" some plugin are added to the 
 The instance isn't automatically initialized.
 
 
-#### Run 
-
 
 ## Contribuiting
 
@@ -242,8 +240,7 @@ Every contribution is welcome!.<br>
 If you encounter a bug or feel the need to add a new features open a new [issue](https://github.com/mattiabonzi/mpdk/issues).
 
 
-
-## Roadmap
+## Roadmap
 
 * Add a "moodle-version/plugin-version/test passed|fail" tracking utility
 * Add test file for testing the script with tap
