@@ -1,21 +1,37 @@
 # MPDK - Moodle Plugin Develpment Kit
 
-This script is a simple wrapper for [Moodle Docker](https://github.com/moodlehq/moodle-docker) and it's main pourpose is to make it faster and easier to use that repo.
+This script is a simple wrapper for [Moodle Docker](https://github.com/moodlehq/moodle-docker) and it's main pourpose is to make it faster and easier to use that enviroment.
 
-It also come with some utilities like [Moosh](), [Local Pluginskel]() with a cli interactive "Create new plugin" interface, [Local Codechecker]() [(PhpCS)](), pre-configured Node and Grunt and [Local Moodlecheck]() for PhpDoc checking.
-All the tool are installed inside the container or keeped as local coopy inside the MPDK enviriment, so nothing will interfere with your actual setup.
+It's all written in pure bash, so it should work on different system, almost without external dependencies.
+
+It also comes with some utilities like [Moosh](https://moosh-online.com/), [Local Pluginskel](https://github.com/mudrd8mz/moodle-tool_pluginskel) with a cli interactive "Create new plugin" interface, [Local Codechecker](https://github.com/moodlehq/moodle-local_codechecker) ([PhpCS](https://github.com/squizlabs/PHP_CodeSniffer)), pre-configured Node and Grunt, [Local Moodlecheck](https://github.com/moodlehq/moodle-local_moodlecheck) for [PhpDoc](https://en.wikipedia.org/wiki/PHPDoc) checking.
+All the tool are installed inside the container or keeped as a local copy inside the MPDK enviriment, so nothing will interfere with your actual setup.
 
 >**INFO**
->This is not aimed to help Moodle Core developer, as for that tools already exist.<br>
->The script should help those developer, organization, university and instiution that develop and mantain their own plugin for the Moodle ecosystem.
+>This script is not aimed to help Moodle Core developer, as for that, tools already exist.<br>
+>The script should help those developer, organization, university and instiution that develop and mantain their own plugins for the Moodle ecosystem.
+
+
+## Prerequisites
+Make sure you have installed: `docker, wget, dialog, sed`<br>
+
+**Mac**<br>
+To get docker click [here](https://docs.docker.com/desktop/install/mac-install/)<br>
+Everything else should be already installed, if not install [brew]() and then run `brew install wget dialog gnu-sed`
+>**Note**: Enable "Virtualization framework" and "VitioFS filesystem" in Docker to boost performance on Mac with ARM system.
+
+
+**Linux**<br>
+To get docker click [here](https://docs.docker.com/desktop/install/linux-install/)<br>
+Run `apt install dialog` or `apt install dialog wget sed` if needed (it shouldn't on most distro)
+
 
 ## Install
 
-Run:
 
-`git clone https://github.com/mattiabonzi/mpdk "Plugin dev" && cd Plugin\ dev &&   chmod +x mdev && ./mdev install`
+`git clone https://github.com/mattiabonzi/mpdk "~/Moodle plugin" && cd ~/Moodle\ plugin &&   chmod +x mdev && ./mdev install`
 
-*This will create a directory named "Plugin dev" that will be your's MPDK home, fell free to change it.*
+>**Note**: This will create a directory named "Moodle plugin" inside your $HOME that will be your's MPDK root, fell free to change it.
 
 
 ## Quick start
@@ -70,9 +86,101 @@ OR, to run all defined test:
 
 
 
+## Command and options
+````yaml
+Usage:
+    mpdk [-i <path>] [-n name] [-h] <command> [-options..] [<args..>]
+
+Current instance:
+    The current instance can be selected either via
+    - Working from inside an instance directory (at any level)
+    - Global options, using -i or -n
+    - Setting the '\$IROOT' env to the desired instance root
+
+Global options:
+
+    -i <path>       Path to moodle instance (alternative to -n)
+    -n <name>       Name of Moodle instance (alternative to -i)
+    -h              Display help screen
+    -H              Open github repository homepage
+
+Commands:
+
+    install
+        Install the enviroment and download dependencies (execute just one time)
+
+    drop
+        (DO NOT USE) Delete all data and file from this mpdk installation
+
+    new [-t] [-v <version>] <name>
+        Create a new instance
+        -t          Create a test only instance
+        -v          Moodle version (x.x.x or x.x)
+        <name>      Name of the instance
+
+    run [-tbd] [-p <port>] [-P <port>]
+        Run (and init if necessary) the instance
+        -t          Init as PhpUnit test instance
+        -b          Init as Behat test instance
+        -d			Init as development instance (default, only useful in combination with -t or -b)
+        -p <port>   Specify the web port
+        -P <port>   Specify the db port
+        
+    init [-tbd]
+        Init the instance if not already
+        -t          Init as PhpUnit test instance
+        -b          Init as Behat test instance
+        -d			Init as development instance (default, only useful in 
+
+    stop [-a]
+        Stop the instance, but retain the data (docker-compose stop)
+        -a			Stop all the instances
+
+    down [-fa]
+        Stop the instance, and discard the data (docker-compose down)
+        -f          Force, don't ask for confirmation
+        -a			Stop all the instances
+        
+    remove [-a]
+        Remove (delete) the instance codebase
+        -a          Remove all the instances
+
+    test [-b] [<path>]
+        Execute all or the specified PhpUnit/Behat test
+        -b          Execute Behat test
+        <path>      Path to the test
+        
+    sniff [-pe] [<plguinames...>]
+        Execute PhpCS and/or Grunt ESlint for the specified plugins
+        It only works with registered plugin, see 'addplugin'
+        -p          Execute only PhpCs (Incompatible with -e)
+        -e          Execute only Eslint (Incompatible with -p)
+        <plguinames>   Name of the plugin(s) to be checked
+
+    sh <commands..>
+        Execute commands inside the container
+        Shortcut for 'docker exec {container-name} bash -l -c <commands>'
+        
+    ps [-an]
+        Show the list of running docker container for the instance
+        -a          Show the list for every instances
+        -n          Show also not running instances (only useful if combined with -a)
+
+    newplugin
+        Interactivly create a new plugin structure with tool_pluginskel
+        Refers to tool_pluginskel documentation for help with the recipe
+        
+    addplugin <component_name> <relative_path>
+        Add a plugin to the registered plugins list (for code checking and version management)
+        
+     myplugin
+        Show a list of registered plugin and their installed versions on every instance        
 
 
-## Command list
+````
+
+
+## Command details
 
 * **install**: Install the dev enviriment
 * **drop**: Delete the dev enviriment (everything)
@@ -90,73 +198,57 @@ OR, to run all defined test:
 * **addplugin**: Add a plugin to the registry
 * **myplugin**: Show my plugin list
 
-## Command and options
-````yaml
-Usage:
-    mpdk [-i <path>] [-n name] [-h] <command> [-options..] [<args..>]
 
-Current instance:
-    The current instance can be selected either via
-    - Working from inside an instance directory (at any level)
-    - Global options, using -i or -n
-    - Setting the '\$IROOT' env to the desired instance root
+#### Install
 
-Global options:
+`install`
 
-    -i <path>       Path to moodle instance (alternative to -n)
-    -n <name>       Name of Moodle instance (alternative to -i)
-    -h              Display help screen
-    -H              Display extended help screen
+Install the dev enviriment
+Download all the dependencies, create the config file and ask the user if to create a symlink to "/usr/local/bin" for use "mpdk" from everywhere
 
-Commands:
 
-    new [-d] [-v <version>] <name>
-        Create a new instance
-        -d          Create a development instance
-        -v          Moodle version (x.x.x or x.x)
-        <name>      Name of the instance
+#### Drop
+`drop`
 
-    run [-tb] [-p <port>] [-P <port>]
-        Run the instance
-        -t          Run a PhpUnit test instance
-        -b          Run a Behat test instance
-        -p <port>   Specify the web port
-        -P <port>   Specify the db port
+Delete everything (the source also) from the enviroment, use only if you want to get rid of everything
 
-    stop
-        Stop the instance, but retain the data 
 
-    down [-f]
-        Stop the instance, and discard the data
-        -f          Force, don't ask for confirmation
+#### New
+`new [-t] [-v <version>] <name>`
 
-    test [<path>]
-        Execute all or the specified PhpUnit test
-        <path>      Path to the test
+Create a new instance downloading the specified version of Moodle (or the latest  stable if not specified).<br>
+The instance will be cerated inside the MPDK_ROOT direcotry.<br>
+The name of the instance will be used for:
 
-    sh <args..>
-        Just a shortcut for 'docker exec {container-name} bash -l -c <args>'
+* name the directory
+* value of the $DOCKER\_COMPOSE\_PROJECT env
+* site name and site description (with '_' converted to spaces)
 
-    newplugin
-        Interactive procedure to creare a tool_pluginskel reciper for generating a new plugin    
-        Refers to tool_pluginskel documentation for help
-    
-    sniff [-pe] [<plguinames...>]
-        Execute PhpCS and/or Grunt ESlint for the specified plugins
-        -p          Execute only PhpCs (Incompatible with -g)
-        -e          Execute only PhpCs (Incompatible with -p)
-        <plugins>   Name of the plugin(s) to be checked
+If the instance is created without the option "-t" some plugin are added to the standard Moodle codebase:
 
-        It only works with registered plugin, see 'addplugin'
+* tool_pluginskel: for new plugin generation
+* local_codechecker: for code checking with PhpCs
+* local_moodlecheck: for PhpDoc checking
 
-    install
-        Install the script and download dependencies (execute just one time)
+The instance isn't automatically initialized.
 
-    drop
-        Delete all data and file from this mpdk installation
-````
+
+#### Run 
+
 
 ## Contribuiting
 
+Every contribution is welcome!.<br>
+If you encounter a bug or feel the need to add a new features open a new [issue](https://github.com/mattiabonzi/mpdk/issues).
+
+
 
 ## Roadmap
+
+* Add a "moodle-version/plugin-version/test passed|fail" tracking utility
+* Add test file for testing the script with tap
+* Split the code in more file for easy maintenance and contrib
+* Imporve the documentation
+* Add git related command for ensure good git practice (https://docs.moodle.org/dev/Git_for_developers, https://docs.moodle.org/dev/Git_tips)
+* Add support for the releasing process of plugin (https://docs.moodle.org/dev/Plugin_validation, https://docs.moodle.org/dev/Plugin_contribution_checklist)
+* Explore https://github.com/SysBind/moodle-dev
