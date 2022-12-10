@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+
+# MPDK written by Mattia Bonzi <mattia@mattiabonzi.it>
+# Convinience script for the development of Moodle's plugin
+# Use at your own risk.
+
+# This file contain only functions that are not direcly exposed in the API, and are only used as utility functions
+
+mpdk_confirmation() {
+    question=${1:-"Are you sure? (y/n) : "}
+    answerno=${2:-"Aborting..."}
+    notaccepted=${3:-"Please answer yes or no."}
+    yesanswer=${4:-"[Yy]*"}
+    noanswer=${5:-"[Nn]*"}
+    while true; do
+        read -p "$question" yn
+        case $yn in
+            $yesanswer ) break;;
+            $noanswer ) echo "$answerno"; exit;;
+            * ) echo "$notaccepted";;
+        esac
+    done
+}
+
+
+mpdk_getmyplugins() {
+    plugins=""
+    while read line; do
+        set $line
+        plugins+=$1" "
+    done < "$ASSET"/myplugin
+    echo $plugins
+}
+
+mpdk_getpluginpath() {
+    grep "^$1\s" $ASSET/myplugin | cut -d' ' -f2
+}
+
+
+
+
+mpdk_spinner() {
+    tput civis
+    pid=$1
+    spin='⣾⣽⣻⢿⡿⣟⣯⣷'
+    i=0
+    while kill -0 $pid 2>/dev/null;do
+        i=$(( (i+1) %4 ))
+        printf "\r${spin:$i:1} Working...\t"
+        sleep .08
+    done
+    tput cnorm
+}
+
+mpdk_isrunning() {
+     [[ "$1" =~ .*"webserver-1".* ]] &&  echo 1 || echo 0
+}
+
+mpdk_requirerunning() {
+    local msg="The instance '$COMPOSE_PROJECT_NAME' is not running, use 'mpdk run' to start it"
+    [ $(mpdk_isrunning "$(mpdk_ps)") -eq 0 ] && echo $msg && exit 1
+}
+
+mpdk_isinstance() {
+     [ -f "$IROOT/.mpdkinstance" ] &&  echo 1 || echo 0
+}
+
+mpdk_requireinstance() {
+    local msg="The speficied path is not an MPDK instance ($IROOT)"
+    #If the .mpdkinstance file does not exist, exit 
+    [ "$(mpdk_isinstance)" -eq 0 ] && echo $msg && exit
+}
+
+mpdk_isinit() {
+     [ -f "$IROOT/.init" ] &&  echo 1 || echo 0
+}
+
+
+mpdk_requireinit() {
+    local msg="The instance '$COMPOSE_PROJECT_NAME' has not been initialized, use 'mpdk init' to init i or 'mpdk run' to init and start it"
+    [ $(mpdk_isinit) -eq 0 ] && echo $msg && exit 1
+}

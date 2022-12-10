@@ -1,0 +1,558 @@
+#!/usr/bin/env bash
+
+# MPDK written by Mattia Bonzi <mattia@mattiabonzi.it>
+# Convinience script for the development of Moodle's plugin
+# Use at your own risk.
+
+#Load "private" function
+source $ASSET/privfunctions
+
+
+#Execute command inside the webserver container
+mpdk_sh() {
+    cmd="$@"
+    docker exec "$COMPOSE_PROJECT_NAME-webserver-1" bash -l -c "$cmd"
+}
+
+
+#Install and download dependencies
+mpdk_install() {
+    #Create dir
+    mkdir "$ASSET"/cache "$ASSET"/recipe
+    touch "$ASSET"/myplugins "$ASSET"/myplugins
+    #Download dependencies
+    git clone --depth 1 https://github.com/moodlehq/moodle-docker.git "$ASSET"/moodle-docker/
+    git clone --depth 1 https://github.com/tmuras/moosh.git "$ASSET"/moosh
+    #Remove ".git" as we don't need to keep track of changes here
+    rm -rf "$MPDK_ROOT"/.git "$ASSET"/moodle-docker/.git "$ASSET"/moosh/.git
+    #Download moosh dependencies
+    composer install -d "$ASSET"/moosh/
+    #Moosh patch (caching Moodle version)
+    cd "$ASSET"/moosh/Moosh/Command/Generic/Download/ && patch < "$ASSET"/patches/DownloadMoodle.php.patch
+    #Moodle-docker patch (adding Moosh)
+    #cd "$ASSET"/moodle-docker && patch < "$ASSET"/patches/base.yml.patch
+    cp "$ASSET"/dockerfile "$ASSET"/moodle-docker/dockerfile
+    #Set the copyright string (for newly created plugin)
+    while true; do
+        read -p "Copyright string, will be used for newly created plugins (Eg. Jonh Smith <jonhsmith@myorg.com>) : " input
+        if [ -n "${input}" ]; then
+            printf "\nexport COPYRIGHT_STRING=\"$input\"" >> "$ASSET"/config
+            break
+        fi    
+    done
+    #Set the editor
+    read -p "What Editor use to edit the code? Insert the full path (or leave blank): " input
+    if [ -n "${input}" ]; then
+        printf "\nexport MPDK_EDIOTR=\"$input\"" >> "$ASSET"/config
+    fi
+    #Set mpdk into the global PATH (if the user want)
+    while true; do
+        read -p "Do you want to add mpdk to your PATH? (y/n) : " yn
+        case $yn in
+            [Yy]* ) sudo ln -s "$MPDK_ROOT"/mpdk /usr/local/bin/mpdk; break;;
+            [Nn]* ) break;;
+            * ) printf "\nPlease answer yes or no.";;
+        esac
+    done
+    printf "\nInstallation completed, run 'mpdk -h' for a list of avaible commands\n"
+}
+
+
+
+
+mpdk_initdev() {
+    if [ $1 -eq 0 ] && [ $2 -eq 1 ]; then
+        mpdk_sh nvm install && npm install
+        mpdk_sh php admin/cli/install_database.php --agree-license --fullname="$3" --shortname="$3" --summary="$3" --adminpass="admin" --adminemail="admin@example.com"
+        mpdk_sh ln -s /opt/moosh/moosh.php /usr/local/bin/moosh
+    fi
+}
+
+mpdk_initphpunit() {
+    if [ $1 -eq 0 ] && [ $2 -eq 1 ]; then
+        mpdk_sh php admin/tool/phpunit/cli/init.php
+    fi
+}
+
+mpdk_initbehat() {
+    if [ $1 -eq 0 ] && [ $2 -eq 1 ]; then
+        mpdk_sh php admin/tool/behat/cli/init.php
+    fi
+}
+
+
+mpdk_init() {
+    #Parse local options
+    phpunit=0;behat=0;dev=0
+    local OPTIND
+    while getopts "tbd" options; do
+        case "${options}" in
+            t ) phpunit=1;;
+            b ) behat=1;;
+            d ) dev=1;;
+        esac
+    done
+    [ $phpunit -eq 0 ] && [ $behat -eq 0 ] && dev=1
+    #Check if already initialized 
+    readydev=0;readyphpunit=0;readybehat=0
+    if [ -f "$IROOT/.init" ];then
+        set "$(cat $IROOT/.init)"
+        readydev=$1
+        readyphpunit=$2
+        readybehat=$3
+    fi
+    #Replace "_" with " " from the instance name to use as Moodle title
+    moodle_desc="$(basename "$IROOT" | sed "s/_/ /g")"
+    #Install moodle if necessary
+    mpdk_initdev $readydev $dev $moodle_desc & 
+    mpdk_initphpunit $readyphpunit $phpunit &
+    mpdk_initbehat $readybehat $behat &
+    wait
+    [ $readydev -eq 1 ] &&  dev=1
+    [ $readyphpunit -eq 1 ] &&  phpunit=1
+    [ $readybehat -eq 1 ] &&  behat=1
+    printf "$dev $phpunit $behat" > $IROOT/.init
+}
+
+
+
+#Create a new instance, download moodle codebase
+mpdk_new() {
+    #Parse local options
+    version="";dev=1
+    local OPTIND
+    while getopts "v:t" options; do
+        case "${options}" in
+            v ) version=${OPTARG};;
+            t ) dev=0;;
+        esac
+    done
+    name=${!OPTIND};((OPTIND++));
+    #Sanity check
+    [ -d "$MPDK_ROOT"/"$name" ] && printf '\nInstance already exist' && exit 1
+    [ -z "$name" ] && printf "\nA name is reuiqred for the new instance!" && exit 1
+    [ -z "$version" ] && version="" || version="-v $version"
+    #Create dir and change pwd
+    mkdir "$MPDK_ROOT"/"$name"
+    cd "$MPDK_ROOT"/"$name"/ || (printf '\nSomething went wrong...' && exit 1)
+    #Download moodle using moosh (the cache is used if present)
+    $ASSET/moosh/moosh.php download-moodle $version
+    #Get the archive name
+    moodle="$(ls "$MPDK_ROOT"/"$name"/moodle*)"
+    #Extract the archive
+    tar -xf "$moodle"
+    #Remove the archive
+    rm "$moodle"
+    touch "$MPDK_ROOT"/"$name"/moodle/.mpdkinstance
+    #If "-d" (develpment mode) download dev Moodle plugins local_codechecker, local_moodlecheck, tool_pluginskel
+    if [ $dev -eq 1 ];then
+        git clone --quiet --depth 1 https://github.com/moodlehq/moodle-local_codechecker.git "$MPDK_ROOT"/"$name"/moodle/local/codechecker
+        git clone --quiet --depth 1 https://github.com/moodlehq/moodle-local_moodlecheck.git "$MPDK_ROOT"/"$name"/moodle/local_moodlecheck
+        git clone --quiet --depth 1 https://github.com/mudrd8mz/moodle-tool_pluginskel.git "$MPDK_ROOT"/"$name"/moodle/admin/tool/pluginskel
+        #Remove ".git" as we don't need to keep track of changes here 
+        rm -rf "$MPDK_ROOT"/"$name"/admin/tool/pluginskel/.git "$MPDK_ROOT"/"$name"/local_moodlecheck/.git "$MPDK_ROOT"/"$name"/moodle/local/codechecker/.git
+    fi
+
+    printf "\nInstance ready, located in '$MPDK_ROOT/$name/' run: 'cd $name && mpdk run' to run it\n"
+}
+
+
+#Start an instance (docker-compose up)
+mpdk_run() {
+    #Parse local options
+    local OPTIND
+    while getopts "p:P:tbd" options; do
+        case "${options}" in
+            p ) WEBPORT=${OPTARG};;
+            P ) DBPORT=${OPTARG};;
+            d ) dev=1;;
+        esac
+    done
+    #Sanity check
+    [ -z "$IROOT" ] && printf "\nA path to the instance is reuiqred" && exit 1
+    portmessage=" port in not free, choose another one or stop the service using this port: "
+    [ -n "$(lsof -i tcp:$WEBPORT -s tcp:listen)" ] && printf "\nWeb"$portmessage $WEBPORT && exit
+    [ -n "$(lsof -i tcp:$DBPORT -s tcp:listen)" ] && printf "\nDatabase"$portmessage $DBPORT && exit
+    #Export web/db port ENV for moodle-docker
+    export MOODLE_DOCKER_WEB_PORT=$WEBPORT
+    export MOODLE_DOCKER_DB_PORT=$DBPORT
+    #Replace "_" with " " from the instance name to use as Moodle title
+    moodle_desc="$(basename "$IROOT" | sed "s/_/ /g")"
+    #Use the config.php file bundled with moodle-docker
+    cp "$ASSET"/moodle-docker/config.docker-template.php "$MOODLE_DOCKER_WWWROOT"/config.php
+    #Compose up
+    "$ASSET"/moodle-docker/bin/moodle-docker-compose up -d
+    #Wait for DB (maybe useless for pgsql, here for safety)
+    "$ASSET"/moodle-docker/bin/moodle-docker-wait-for-db
+    #Install moodle if necessary
+    mpdk_init $@
+    #Show "docker ps" to the user
+    "$ASSET"/moodle-docker/bin/moodle-docker-compose ps
+    #Mark as initialized
+    printf "\nPiattaforma online http://localhost:$MOODLE_DOCKER_WEB_PORT"
+    printf "\nUser: admin   |    Passowrd: admin\n"    
+    #Open the browser only if it's a devinstance
+    if [ $dev -eq 1 ]; then
+        sleep 3
+        open  http://localhost:"$MOODLE_DOCKER_WEB_PORT"
+    fi
+}
+
+
+
+
+
+#Stop the instance and delete the volume (persisted data)
+mpdk_downstopremove() {
+    #Parse local options
+    force=0;all=0;stop=0;remove=0;
+    local OPTIND
+    while getopts "arsf" options; do
+        case "${options}" in
+            a ) all=1;force=1;;
+            r ) remove=1;force=0;;
+            s ) stop=1;force=1;;
+            f ) force=1;;
+        esac
+    done
+    #If not "-f" (force) ask confirmation to the user
+    if [ $force -eq 0 ]; then
+        instance=$(basename $(dirname $IROOT))
+        msg="$( [ $remove -eq 1 ] && echo 'and ALL THE CODE' || echo '(not the code)')"
+        q="Are you sure? All the data $msg of the instance '$instance' will be lost forever, do you want to continue? (y/n) : "
+        mpdk_confirmation  "$q" "Aborting..., use \"stop\" to stop the instance without losing data"
+    fi
+    #If -a (all) down/remove/stop all the instances
+    if [ $all -eq 1 ];then
+        printf "You will be asked to confirm for each instance...\n"
+        ilist="$(ls $MPDK_ROOT)"
+        msg='Nothing to do...'
+        for instance in $ilist;do
+            [ ! -f "$MPDK_ROOT/$instance/moodle/.mpdkinstance" ] && continue
+            if [ $stop -eq 1 ];then
+                [ $(mpdk_isrunning "$(mpdk -n $instance ps)") -eq 0 ] && continue
+                mpdk -n $instance stop
+                msg='\nAll instances have been stopped'
+            elif [ $remove -eq 1 ];then
+                mpdk -n $instance remove
+                msg='\nAll not-running instances have been deleted!'
+            else
+                [ ! -f "$MPDK_ROOT/$instance/moodle/.init" ] && continue
+                mpdk -n $instance down
+                msg='\nAll instances have been taken down'
+            fi
+        done
+        printf "$msg"
+    else
+        #Down/remove/stop this instance
+        [ -z $IROOT ] && echo "An instance must be defined, use -a for all or specify one" && exit 1
+        mpdk_requireinstance
+        if [ $stop -eq 1 ];then
+            mpdk_requirerunning
+            "$ASSET"/moodle-docker/bin/moodle-docker-compose stop
+        elif [ $remove -eq 1 ];then
+            if [ $(mpdk_isrunning) -eq 1 ] || [ $(mpdk_isinit) -eq 1 ];then
+                "Cannot delete the instance, run 'mpdk down' first"
+                exit 1
+            fi
+            rm -rf "$IROOT" & mpdk_spinner $!
+        else
+            mpdk_requireinit
+            "$ASSET"/moodle-docker/bin/moodle-docker-compose down 
+            rm $IROOT.init
+        fi
+    fi
+}
+
+
+#Execute all or the specified PhpUnit test
+mpdk_test() {
+    #Parse local options
+    phpunit=1
+    local OPTIND
+    while getopts "b" options; do
+        case "${options}" in
+            b ) phpunit=0;;
+        esac
+    done
+    test=$1
+     #If $test is not provided, ask confirmation before execute all test
+    if [ -z "$test" ]; then
+        mpdk_confirmation "Do you want to execute all the test defined in Moodle? This will require a lot of time (y/n) : "
+    fi
+     #Run the test
+    if [ $phpunit -eq 1 ];then
+        mpdk_sh php admin/tool/phpunit/cli/util.php --run "$test"
+    else
+        [ -n "$test" ] && test='--tags=@'$test
+        docker exec -u www-data "$COMPOSE_PROJECT_NAME-webserver-1" php admin/tool/behat/cli/run.php $test
+    fi
+}
+
+#Execute code checks (PhpCs and Grunt)
+mpdk_sniff() {
+    #Parse local options
+    php=0;grunt=0
+    local OPTIND
+    while getopts "pg" options; do
+        case "${options}" in
+            p ) php=1;shift;;
+            g ) grunt=1;shift;;
+        esac
+    done
+    if [ $php -eq 0 ] && [ $grunt -eq 0 ];then
+        php=1;grunt=1
+    fi
+    #Check that the instance in running
+    mpdk_requirerunning
+    #Get plugins name, if not provided will be executed all registred plugins
+    plugins="$@"
+    if [ -z $plugins ];then
+        plugins="$(mpdk_getmyplugins)"
+    fi
+    #Output the installed rule
+    mpdk sh local/codechecker/phpcs/bin/phpcs -i 
+    printf "\n--------------------------------"
+    for plugin in $plugins;do
+        fpath="$(mpdk_getpluginpath $plugin)"
+
+        #Run the check
+        if [ -d $IROOT$fpath ];then
+            printf "\n\n\nPLUGIN: $plugin\n"
+            if [ $php -eq 1 ];then
+                printf "PHP\n\n"
+                mpdk_sh 'php local/codechecker/phpcs/bin/phpcs -v --colors '$fpath
+            fi
+            if [ $grunt -eq 1 ];then
+                printf "\n\nJS/CSS\n\n"
+                mpdk_sh 'grunt --root="./'$fpath'" eslint'
+            fi
+            printf "\n\n--------------------------------"
+        fi
+    done    
+    printf "\n"
+}
+
+
+#Show usage message
+mpdk_usage() {
+    printf "Usage:\n\n    mpdk [-i <path>] [-n name] [-h] <command> [-options..] [<args..>]\n\n"
+    [ -z "$@" ] && printf "\nTry 'mpdk -h' for help\n" && exit
+}
+
+#Show help message
+mpdk_help() {
+     lines="$(grep -n '````' $MPDK_ROOT/README.md | cut -d: -f1 | tr '\n' ' ')"
+     set $lines
+     sed -n $(($1+1)),$(($2-1))p $MPDK_ROOT/README.md
+}
+
+#Show extended help message
+mpdk_extendedhelp() {
+    open "https://github.com/mattiabonzi/mpdk"
+}
+
+#Called by Moosh when downloading Moodle
+#Check the cache, if the reqeust version is already present, serve from cache otherwise download with wget
+mpdk_download_moodle() {
+    #Get the url from the argument passed to wget
+    url="$(echo "$@" | sed 's/.*\(https.*tgz\).*/\1/')"
+    #Get the filename from the url
+    filename="$(basename "$url")"
+    #Get the hash of the url
+    hash="$(echo "$url" | md5)"
+    #Check the cache
+    if [ -d "$ASSET"/cache/"$hash" ];then
+        #Copy the file from the cache
+        cp -r "$ASSET"/cache/"$hash"/"$filename" ./"$filename"
+    else
+        #Download the file using wget and the original argument
+        wget $@
+        #Create the entry inside the cache dir
+        mkdir "$ASSET"/cache/"$hash"/
+        #Copy the archive in the cache
+        cp -r ./"$filename" "$ASSET"/cache/"$hash"/"$filename"
+    fi
+}
+
+#Delete everything (this file also)
+mpdk_drop() {
+    #Ask confirmation to the users
+    #Is required to answer exactly "YES" (in capital letter)
+    q="Are you really sure? All the data and the code of all the instances will be lost forever (and everything else yuo have in the mpdk folder), do you want to continue? (YES/n) : "
+    mpdk_confirmation "$q" "Aborting..." "Please answer YES (in capital letter) or no.\n" "YES"
+    #Delete everything using find ("rm ." does not work)
+    find "$MPDK_ROOT" -maxdepth 0 -exec rm -rf {} \;
+    printf "\nTo re-install run 'git clone https://github.com/mattiabonzi/mpdk.git && cd mpdk && chmod +x mpdk && ./mpdk install'\n"
+}
+
+
+#Create a new plugin using tool_pluginskel
+mpdk_newplugin() {
+    #Sanity check
+    #Check if the container is running
+    mpdk_requirerunning
+    #Get the dialog ENV if present use "dialog" as fallback
+    dialog=${DIALOG:-dialog}
+    #Output redirection required for use "dialog"
+    output="3>&1 1>&2 2>&3 3>&-"
+    #Load the "form"
+    source "$ASSET"/plugindialogs
+
+    #Show all the form
+    type="$(eval "$dialog $PLUGIN_TYPE_DIALOG $output")";
+    shortname="$(eval "$dialog $PLUGIN_COMPONENT_NAME_DIALOG $output")";
+    name="$(eval "$dialog  $PLUGIN_DISPLAY_NAME_DIALOG $output")";
+    features="$(eval "$dialog $PLUGIN_FEATURES_DIALOG $output")";
+    privacy="$(eval "$dialog $PLUGIN_PRIVACY_DIALOG $output")";
+    minversion="$(eval "$dialog $PLUGIN_REQUIRES_VERSION_DIALOG $output")";
+    release="$(eval "$dialog $PLUGIN_RELEASE_DIALOG $output")";
+    version="$(eval "$dialog $PLUGIN_VERSION_DIALOG $output")";
+    maturity="$(eval "$dialog $PLUGIN_MATURITY_DIALOG $output")";
+    editmanualy="$(eval "$dialog $PLUGIN_CREATE_DIALOG $output")";
+    
+
+    #Create "features" yaml part
+    feautes_string="features:\n"
+    recipename="$type"_"$shortname";
+    for f in $features; do
+        feautes_string+="    $f: true \n"
+    done
+
+    #Create main yaml part (indentation is relevant) 
+    yaml="
+#Generated by mpdk script for tool_pluginskel
+copyright: '$COPYRIGHT_STRING'
+component: '$recipename'
+release: $release
+version: $version
+requires: '$minversion'
+maturity: $maturity
+name: '$name'\n""$feautes_string"
+
+    #Create privacy yaml part
+    if [ "$privacy" -eq 1 ]; then
+        yaml+="privacy:\n    haspersonaldata: true\n"
+    fi
+    #If the user choose to continue editing the file manually, output it and exit
+    if [ "$editmanualy" -eq 1 ]; then
+        clear
+        printf "\nCopy your recipe:"
+        printf "\n\n$yaml\n\n"
+        exit
+    fi
+
+    #Ask the user if to create also a git repo
+    git="$(eval "$dialog $PLUGIN_GIT_DIALOG $output")";
+    grunt="$(eval "$dialog $PLUGIN_GRUNT_DIALOG $output")";
+    clear
+    #Create the yaml file
+    printf "$yaml" > "$ASSET"/recipe/"$recipename".yaml
+    #Copy the file in the moodle dr, so it's visible inside the conatiner
+    cp "$ASSET"/recipe/"$recipename".yaml "$IROOT"/"$recipename".yaml
+    #Execute tool_pluginskel generate.php
+    result="$(mpdk_sh php admin/tool/pluginskel/cli/generate.php --target-moodle=/var/www/html /var/www/html/"$recipename".yaml)"
+    #Delete the file inside moodle, as we don't want to keep it here
+    rm "$IROOT"/"$recipename".yaml
+    #Get the new plugin directory
+    relpath="$(echo "$result" | sed "s+.*\/var\/www\/html++g")"
+  
+    [ -z "$relpath" ] && printf "\nSomething went wrong" && exit
+    [ "${relpath:${#relpath}-1:1}" != '/' ] && relpath+='/'
+    [ "${relpath:0:1}" = '/' ] && relpath="${relpath:1:${#relpath}}"
+    plugindir=$IROOT"$relpath"
+    #Get the warning and error from tool_pluginskel (warning are like useful advice)
+    result="$(echo "$result" | sed "s+\[.\{32\}\].tool_pluginskel\.[A-Z]*:.+\n+g" | cut -f 1 -d "[")"
+    #Check if we have a directory, otherwise something went wrong
+    if [ -z "$plugindir" ];then 
+        printf '\nAn error as occurred! Please try again...'
+        exit
+    fi
+    #Create the git repository if requested by the user 
+    if [ $git -eq 1 ]; then
+        cd "$plugindir" || ( printf "\nSomething went wrong..." && exit )
+        wget --quiet -O "$plugindir"/.gitignore "https://www.toptal.com/developers/gitignore/api/phpunit,phpstorm+all,macos,windows,linux,eclipse,visualstudiocode,netbeans,python,node,grunt,sublimetext,phpcodesniffer,composer" & mpdk_spinner $!
+        git init --quiet
+        git add .
+        #Make the first commit
+        git commit --quiet -m "Initial commit, plugin just generated with mpdk and pluginskel (auto)" 
+    fi
+    #Add a gruntfile
+    clear
+    if [ $grunt -eq 1 ];then
+        printf '{\n    "name": "moodle-'$recipename'",\n    "private": true}' > "$plugindir"/package.json
+        mpdk_sh "cd $relpath && npm install --save-dev grunt grunt-contrib-less grunt-contrib-watch grunt-load-gruntfile 1>/dev/null" & mpdk_spinner $!
+        #Adjust the reference to the global gruntfile
+        gruntpath="$(echo $relpath | sed -r "s#[A-Za-z0-9-]+#\.\.#g")"Gruntfile.js
+        cat "$ASSET"/gruntfile | sed "s+%relpath%+$gruntpath+g" > "$plugindir"/Gruntfile.js
+    fi
+    #Save the entry in myplugins file
+    mpdk_addplugin "$recipename" "$relpath"
+    #Print the warnign and error from tool_pluginskel to the user
+    
+    printf "\n\n$result\n";
+    printf "\nYour plugin is ready inside: $plugindir, happy coding!\n"
+}
+
+
+mpdk_addplugin() {
+    name=$1
+    path=$2
+    if [ -z "$path" ] || [ -z "$name" ]; then
+        printf "\nExepcting 2 argument: <component name> <relative path>"
+        exit
+    fi
+    printf "$name $path\n" >> "$ASSET"/myplugin
+    printf "\nPlugin '$name', relative path '$path' has been added to the list\n"
+}
+
+mpdk_myplugin() {
+    ilist="$(ls $MPDK_ROOT)"
+    while read line; do
+        set $line
+        o+="$2 $1\n"
+        for instance in $ilist;do
+            vfile="$MPDK_ROOT/$instance/moodle/$2/$1/version.php"
+            if [ -f "$vfile" ];then
+                cmd='define("MOODLE_INTERNAL", 1); @include "'$vfile'"; echo $plugin->version;'
+                version="$(php -r "$cmd")"
+                o+="   $instance   $version\n"
+            fi
+        done
+        o+="\n\n---------------\n"
+    done < "$ASSET"/myplugin
+    printf "$o"
+}
+
+
+mpdk_ps() {
+    #Parse local options
+    all=0
+    nonrunning=0
+    local OPTIND
+    while getopts "an" options; do
+        case "${options}" in
+            a ) all=1;;
+            n ) nonrunning=1;;
+            
+        esac
+    done
+    if [ $all -eq 1 ];then
+        ilist="$(ls $MPDK_ROOT)"
+        for instance in $ilist;do
+            [ ! -d "$MPDK_ROOT/$instance/moodle" ] && continue
+            out="⎈ $instance\n\n"
+            out+="$(mpdk -n $instance ps)"
+            out+="\n------------------------------\n\n"
+            if [ $nonrunning -eq 1 ] || [[ $(mpdk_isrunning "$out") -eq 1 ]];then
+                printf "$out"
+            fi
+        done
+    else
+        [ -z $IROOT ] && echo 'An instance must be defined, run "mpdk ps -a" for all or specify one' && exit 1
+        "$ASSET"/moodle-docker/bin/moodle-docker-compose ps -a
+    fi
+}
+
+
+
