@@ -1,5 +1,8 @@
 # MPDK - Moodle Plugin Develpment Kit
 
+>**Warning**<br>
+>THE SCRIPT IS NOT STABLE YET, IT'S SUBJECT TO CONTINUOUS CHANGES AND COULD BREAK AT ANY POINT
+
 This script is a simple wrapper for [Moodle Docker](https://github.com/moodlehq/moodle-docker) and it's main pourpose is to make it faster and easier to use that enviroment.
 
 It's all written in pure bash, so it should work on different system, almost without external dependencies.
@@ -7,7 +10,7 @@ It's all written in pure bash, so it should work on different system, almost wit
 It also comes with some utilities like [Moosh](https://moosh-online.com/), [Local Pluginskel](https://github.com/mudrd8mz/moodle-tool_pluginskel) with a cli interactive "Create new plugin" interface, [Local Codechecker](https://github.com/moodlehq/moodle-local_codechecker) ([PhpCS](https://github.com/squizlabs/PHP_CodeSniffer)), pre-configured Node and Grunt, [Local Moodlecheck](https://github.com/moodlehq/moodle-local_moodlecheck) for [PhpDoc](https://en.wikipedia.org/wiki/PHPDoc) checking.
 All the tool are installed inside the container or keeped as a local copy inside the MPDK enviriment, so nothing will interfere with your actual setup.
 
->**INFO**
+>**Note**
 >This script is not aimed to help Moodle Core developer, as for that, tools already exist.<br>
 >The script should help those developer, organization, university and instiution that develop and mantain their own plugins for the Moodle ecosystem.
 
