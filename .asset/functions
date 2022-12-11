@@ -29,8 +29,8 @@ mpdk_install() {
     composer install -d "$ASSET"/moosh/
     #Moosh patch (caching Moodle version)
     cd "$ASSET"/moosh/Moosh/Command/Generic/Download/ && patch < "$ASSET"/patches/DownloadMoodle.php.patch
-    #Moodle-docker patch (adding Moosh)
-    cd "$ASSET"/moodle-docker && patch < "$ASSET"/patches/base.yml.patch
+    #Customzie Moodle-docker
+    cp "$ASSET"/local.yml "$ASSET"/moodle-docker/local.yml
     cp "$ASSET"/dockerfile "$ASSET"/moodle-docker/dockerfile
     #Set the copyright string (for newly created plugin)
     while true; do
@@ -65,17 +65,25 @@ mpdk_initdev() {
         mpdk_sh nvm install && npm install
         mpdk_sh php admin/cli/install_database.php --agree-license --fullname="$3" --shortname="$3" --summary="$3" --adminpass="admin" --adminemail="admin@example.com"
         mpdk_sh ln -s /opt/moosh/moosh.php /usr/local/bin/moosh
+        #Install and enable xdebug
+        if [[ $MOODLE_DOCKER_PHP_VERSION = '8.0' ]];then
+        [[ $(uname -s) =~ .*'inux' ]] && xdebughost='localhost' || xdebughost='host.docker.internal'
+            mpdk_sh 'printf "xdebug.mode = debug\nxdebug.client_host = '"$xdebughost"'" > /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini'
+            mpdk_sh pecl install xdebug
+            mpdk_sh docker-php-ext-enable xdebug
+            docker restart "$COMPOSE_PROJECT_NAME"-webserver-1
+        fi
     fi
 }
 
 mpdk_initphpunit() {
-    if [ $1 -eq 0 ] && [ $2 -eq 1 ]; then
+    if [[ $1 -eq 0 ]] && [[ $2 -eq 1 ]]; then
         mpdk_sh php admin/tool/phpunit/cli/init.php
     fi
 }
 
 mpdk_initbehat() {
-    if [ $1 -eq 0 ] && [ $2 -eq 1 ]; then
+    if [[ $1 -eq 0 ]] && [[ $2 -eq 1 ]]; then
         mpdk_sh php admin/tool/behat/cli/init.php
     fi
 }
@@ -96,10 +104,10 @@ mpdk_init() {
     #Check if already initialized 
     readydev=0;readyphpunit=0;readybehat=0
     if [ -f "$IROOT/.init" ];then
-        set "$(cat $IROOT/.init)"
-        readydev=$1
-        readyphpunit=$2
-        readybehat=$3
+        set $(cat $IROOT/.init)
+        readydev="$1"
+        readyphpunit="$2"
+        readybehat="$3"
     fi
     #Replace "_" with " " from the instance name to use as Moodle title
     moodle_desc="$(basename "$IROOT" | sed "s/_/ /g")"
@@ -108,9 +116,9 @@ mpdk_init() {
     mpdk_initphpunit $readyphpunit $phpunit &
     mpdk_initbehat $readybehat $behat &
     wait
-    [ $readydev -eq 1 ] &&  dev=1
-    [ $readyphpunit -eq 1 ] &&  phpunit=1
-    [ $readybehat -eq 1 ] &&  behat=1
+    [[ $readydev -eq 1 ]] &&  dev=1
+    [[ $readyphpunit -eq 1 ]] &&  phpunit=1
+    [[ $readybehat -eq 1 ]] &&  behat=1
     printf "$dev $phpunit $behat" > $IROOT/.init
 }
 
@@ -170,9 +178,9 @@ mpdk_run() {
     done
     #Sanity check
     [ -z "$IROOT" ] && printf "\nA path to the instance is reuiqred" && exit 1
-    portmessage=" port in not free, choose another one or stop the service using this port: "
-    [ -n "$(lsof -i tcp:$WEBPORT -s tcp:listen)" ] && printf "\nWeb"$portmessage $WEBPORT && exit
-    [ -n "$(lsof -i tcp:$DBPORT -s tcp:listen)" ] && printf "\nDatabase"$portmessage $DBPORT && exit
+    portmessage="port in not free, choose another one or stop the service using this port: "
+    [ -n "$(lsof -i tcp:$WEBPORT -s tcp:listen)" ] && printf "\nWeb $portmessage $WEBPORT" && exit
+    [ -n "$(lsof -i tcp:$DBPORT -s tcp:listen)" ] && printf "\nDatabase $portmessage $DBPORT" && exit
     #Export web/db port ENV for moodle-docker
     export MOODLE_DOCKER_WEB_PORT=$WEBPORT
     export MOODLE_DOCKER_DB_PORT=$DBPORT
@@ -367,7 +375,7 @@ mpdk_download_moodle() {
         cp -r "$ASSET"/cache/"$hash"/"$filename" ./"$filename"
     else
         #Download the file using wget and the original argument
-        wget $@
+        wget --quiet $@
         #Create the entry inside the cache dir
         mkdir "$ASSET"/cache/"$hash"/
         #Copy the archive in the cache

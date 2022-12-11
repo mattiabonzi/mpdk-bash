@@ -17,8 +17,8 @@ Make sure you have installed: `docker, wget, dialog, sed`<br>
 
 **Mac**<br>
 To get docker click [here](https://docs.docker.com/desktop/install/mac-install/)<br>
-Everything else should be already installed, if not install [brew]() and then run `brew install wget dialog gnu-sed`
->**Note**: Enable "Virtualization framework" and "VitioFS filesystem" in Docker to boost performance on Mac with ARM system.
+Everything else should be already installed, if not install [brew](https://brew.sh/) and then run `brew install wget dialog gnu-sed`
+>**Note**: Enable "Virtualization framework" and "VitioFS file sharing" in Docker settings to boost performance on Mac with ARM chip.
 
 
 **Linux**<br>
@@ -89,7 +89,7 @@ OR, to run all defined test:
 ## Command and options
 ````yaml
 Usage:
-    mpdk [-i <path>] [-n name] [-h] <command> [-options..] [<args..>]
+    mpdk [-i <path>] [-n name] [-hH] <command> [-options..] [<args..>]
 
 Current instance:
     The current instance can be selected either via
@@ -98,14 +98,12 @@ Current instance:
     - Setting the '\$IROOT' env to the desired instance root
 
 Global options:
-
     -i <path>       Path to moodle instance (alternative to -n)
     -n <name>       Name of Moodle instance (alternative to -i)
     -h              Display help screen
     -H              Open github repository homepage
 
 Commands:
-
     install
         Install the enviroment and download dependencies (execute just one time)
 
@@ -233,6 +231,8 @@ If the instance is created without the option "-t" some plugin are added to the 
 The instance isn't automatically initialized.
 
 
+#### Run 
+
 
 ## Contribuiting
 
@@ -240,7 +240,8 @@ Every contribution is welcome!.<br>
 If you encounter a bug or feel the need to add a new features open a new [issue](https://github.com/mattiabonzi/mpdk/issues).
 
 
-## Roadmap
+
+## Roadmap
 
 * Add a "moodle-version/plugin-version/test passed|fail" tracking utility
 * Add test file for testing the script with tap

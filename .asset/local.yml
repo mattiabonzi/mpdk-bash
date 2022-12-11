@@ -1,0 +1,7 @@
+version: "2"
+services:
+  webserver:
+      build: .
+      image: moodle-php-apache-python-node:${MOODLE_DOCKER_PHP_VERSION:-8.0}
+      volumes:
+        - "${MPDK_ROOT}/.asset/moosh:/opt/moosh"

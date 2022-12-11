@@ -20,8 +20,6 @@ DBPORT=8001
 [ -f "$ASSET/config" ] && source $ASSET/config
 #Eventually load the own created plugin list
 [ -f "$ASSET/myplugin" ] && MYPLUGIN="$(cat $ASSET/myplugin)"
-#Eventually load the global env file
-[ -f "$MPDK_ROOT/env" ] && source $MPDK_ROOT/env
 #Load the functions
 source $ASSET/functions
 
@@ -60,7 +58,6 @@ fi
 if  [ -n "$IROOT" ];then
     [ "${IROOT:${#IROOT}-1:1}" != '/' ] && IROOT+='/'
     mpdk_requireinstance
-    echo "pippopluto"
     export MOODLE_DOCKER_WWWROOT=$IROOT
     export MOODLE_DOCKER_DB=pgsql
     export COMPOSE_PROJECT_NAME="$(basename "$(dirname $IROOT)")"
@@ -69,6 +66,9 @@ if  [ -n "$IROOT" ];then
 fi
 #Export ENV for redirect moosh wget call to this script (for caching Moodle version)
 export MOOSH_WGET="$MPDK_ROOT/mpdk download-moodle"
+export MOODLE_DOCKER_PHP_VERSION=8.0
+#Eventually load the global env file
+[ -f "$MPDK_ROOT/env" ] && source $MPDK_ROOT/env
 #Parse command
 COMMAND=$1;shift
 
@@ -95,6 +95,7 @@ fi
 
 #Parse all the other commands
 case $COMMAND in
+    init ) mpdk_init $@;exit;;
     run ) mpdk_run $@;;
     test ) mpdk_test $@;;
     sh ) mpdk_sh $@;;

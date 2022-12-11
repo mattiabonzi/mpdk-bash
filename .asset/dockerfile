@@ -1,4 +1,4 @@
-FROM moodlehq/moodle-php-apache:${MOODLE_DOCKER_PHP_VERSION:-7.4}
+FROM moodlehq/moodle-php-apache:${MOODLE_DOCKER_PHP_VERSION:-8.0}
 #Set the shell to bash (so we can source thing)
 SHELL ["/bin/bash", "-c"]
 RUN apt update
