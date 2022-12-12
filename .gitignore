@@ -3,6 +3,9 @@ https://www.toptal.com/developers/gitignore/api/phpunit,phpstorm+all,macos,windo
 # Edit at 
 https://www.toptal.com/developers/gitignore?templates=phpunit,phpstorm+all,macos,windows,linux,eclipse,visualstudiocode,netbeans,python,node,grunt,sublimetext,phpcodesniffer,composer
 
+#Test lib
+.asset/t/osht.sh
+
 ### Composer ###
 composer.phar
 /vendor/

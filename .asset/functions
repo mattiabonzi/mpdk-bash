@@ -22,13 +22,6 @@ mpdk_install() {
     touch "$ASSET"/myplugins "$ASSET"/myplugins
     #Download dependencies
     git clone --depth 1 https://github.com/moodlehq/moodle-docker.git "$ASSET"/moodle-docker/
-    git clone --depth 1 https://github.com/tmuras/moosh.git "$ASSET"/moosh
-    #Remove ".git" as we don't need to keep track of changes here
-    rm -rf "$MPDK_ROOT"/.git "$ASSET"/moodle-docker/.git "$ASSET"/moosh/.git
-    #Download moosh dependencies
-    composer install -d "$ASSET"/moosh/
-    #Moosh patch (caching Moodle version)
-    cd "$ASSET"/moosh/Moosh/Command/Generic/Download/ && patch < "$ASSET"/patches/DownloadMoodle.php.patch
     #Customzie Moodle-docker
     cp "$ASSET"/local.yml "$ASSET"/moodle-docker/local.yml
     cp "$ASSET"/dockerfile "$ASSET"/moodle-docker/dockerfile
@@ -64,7 +57,6 @@ mpdk_initdev() {
     if [ $1 -eq 0 ] && [ $2 -eq 1 ]; then
         mpdk_sh nvm install && npm install
         mpdk_sh php admin/cli/install_database.php --agree-license --fullname="$3" --shortname="$3" --summary="$3" --adminpass="admin" --adminemail="admin@example.com"
-        mpdk_sh ln -s /opt/moosh/moosh.php /usr/local/bin/moosh
         #Install and enable xdebug
         if [[ $MOODLE_DOCKER_PHP_VERSION = '8.0' ]];then
         [[ $(uname -s) =~ .*'inux' ]] && xdebughost='localhost' || xdebughost='host.docker.internal'
@@ -143,12 +135,12 @@ mpdk_new() {
     #Create dir and change pwd
     mkdir "$MPDK_ROOT"/"$name"
     cd "$MPDK_ROOT"/"$name"/ || (printf '\nSomething went wrong...' && exit 1)
-    #Download moodle using moosh (the cache is used if present)
-    $ASSET/moosh/moosh.php download-moodle $version
+    #Download moodle (the cache is used if present)
+    mpdk_download_moodle $version
     #Get the archive name
     moodle="$(ls "$MPDK_ROOT"/"$name"/moodle*)"
     #Extract the archive
-    tar -xf "$moodle"
+    unzip "$moodle"
     #Remove the archive
     rm "$moodle"
     touch "$MPDK_ROOT"/"$name"/moodle/.mpdkinstance
@@ -360,9 +352,55 @@ mpdk_extendedhelp() {
     open "https://github.com/mattiabonzi/mpdk"
 }
 
-#Called by Moosh when downloading Moodle
-#Check the cache, if the reqeust version is already present, serve from cache otherwise download with wget
+
 mpdk_download_moodle() {
+    #Parse local options
+    version=latest;cache=1;link='';returnurl=0;
+    local OPTIND
+    while getopts "ucv:" options; do
+        case "${options}" in
+            u ) returnurl=1;;
+            c ) cache=0;;
+            v ) version=${OPTARG};;
+        esac
+    done
+    
+    if [ "$version" = "latest" ];then
+        link="$( wget -q  -O - https://download.moodle.org/releases/latest/ | grep -o "https://download\.moodle\.org/download\.php/stable\d\+/moodle-latest-\d\+\.zip" | head -1 | sed 's+stable+direct/stable+g')"
+    else
+        if [[ "${version:0:1}" = 4 ]];then
+            branch=$(echo $version | cut -d '.' -f1,2 | tr '.' 0)
+        else
+            branch=$(echo $version | cut -d '.' -f1,2 | tr -d '.')
+        fi 
+        echo $version
+        if [[ $version =~ [0-9]+\.[0-9]+\.[0-9]+ ]];then
+        echo "heey" $version
+            if [ "${version:4}" = 0 ];then 
+                version="${version:0:3}"
+            fi
+            link="https://download.moodle.org/download.php/direct/stable${branch}/moodle-$version.zip"
+        elif [[ $version =~ [0-9]+\.[0-9]+ ]];then
+            echo "oooo"$version"ooo"
+            link="https://download.moodle.org/download.php/direct/stable${branch}/moodle-latest-${version//\.}.zip"
+        else
+            echo "Use syntax 'x.x' or 'x.x.x' to specify the version"
+        fi
+    fi
+    if [ $returnurl -eq 1 ];then
+        echo $link
+        exit
+    fi
+    if [ $cache -eq 1 ];then
+        mpdk_call_wget $link
+    else
+        wget --quite $link
+    fi
+}
+
+#Check the cache, if the reqeust version is already present, serve from cache otherwise download with wget
+mpdk_call_wget() {
+    
     #Get the url from the argument passed to wget
     url="$(echo "$@" | sed 's/.*\(https.*tgz\).*/\1/')"
     #Get the filename from the url

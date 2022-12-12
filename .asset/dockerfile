@@ -1,8 +1,17 @@
 FROM moodlehq/moodle-php-apache:${MOODLE_DOCKER_PHP_VERSION:-8.0}
-#Set the shell to bash (so we can source thing)
+#Set the shell to bash
 SHELL ["/bin/bash", "-c"]
 RUN apt update
-#On slow net python fail with "libpython3.9-stdlib connection timed out"
-RUN apt install -y python3 wget || apt install -y python3 wget
+RUN wget unzip zip
+#On slow net python may fail with "libpython3.9-stdlib connection timed out"
+RUN apt install -y python3 || apt install -y python3
+#Install NVM and latest LTS Node
 RUN curl -o - https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash
 RUN source ~/.nvm/nvm.sh && nvm install --lts && nvm use --lts
+#Install composer
+RUN cd /opt && wget -O composer-setup.php https://getcomposer.org/installer && php composer-setup.php && rm composer-setup.php
+RUN mv /opt/composer.phar /usr/local/bin/composer
+#Install moosh
+RUN cd /opt && git clone --depth 1 https://github.com/tmuras/moosh.git
+RUN composer install -d opt/moosh/
+RUN ln -s opt/moosh/moosh.php /usr/local/bin/moosh
