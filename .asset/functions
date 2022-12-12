@@ -21,7 +21,7 @@ mpdk_install() {
     mkdir "$ASSET"/cache "$ASSET"/recipe
     touch "$ASSET"/myplugins "$ASSET"/myplugins
     #Download dependencies
-    git clone --depth 1 https://github.com/moodlehq/moodle-docker.git "$ASSET"/moodle-docker/
+    git clone --quiet --depth 1 https://github.com/moodlehq/moodle-docker.git "$ASSET"/moodle-docker/
     #Customzie Moodle-docker
     cp "$ASSET"/local.yml "$ASSET"/moodle-docker/local.yml
     cp "$ASSET"/dockerfile "$ASSET"/moodle-docker/dockerfile

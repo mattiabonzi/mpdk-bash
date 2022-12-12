@@ -1,23 +1,21 @@
 #!/usr/bin/env bash
 
+#TEST: install
+####
+echo "###### INSTRUCTION #######"
+echo "Anser the question EXACTLY this way: "
+echo "Copytight: 'Jonh smith <Jonhsmith@myorg.com>'"
+echo "Editor: '/Applications/PhpStorm.app'"
+echo "Add mpdk on PATH: 'n'"
+echo "##########################"
+sleep 5
+####
+
 #Load osht
 source .asset/t/osht.sh
 mpdk=./mpdk
 
-PLAN 10
-
-#TEST: install
-####
-echo "Anser the question EXACTLY this way: "
-echo "Copytight:"
-echo "  Jonh smith <Jonhsmith@myorg.com>"
-echo "Editor:"
-echo "/Applications/PhpStorm.app"
-echo "Add mpdk on PATH:"
-echo "n"
-sleep 5
-####
-#RUN install
+######### START #########
 $mpdk install #1
 #Check file and dir
 OK -f "../moodle-docker/local.yml" #2
