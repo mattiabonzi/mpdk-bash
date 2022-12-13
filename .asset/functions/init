@@ -1,0 +1,62 @@
+
+
+mpdk_initdev() {
+    if [ $1 -eq 0 ] && [ $2 -eq 1 ]; then
+        mpdk_sh nvm install && npm install
+        mpdk_sh php admin/cli/install_database.php --agree-license --fullname="$3" --shortname="$3" --summary="$3" --adminpass="admin" --adminemail="admin@example.com"
+        #Install and enable xdebug
+        if [[ $MOODLE_DOCKER_PHP_VERSION = '8.0' ]];then
+        [[ $(uname -s) =~ .*'inux' ]] && xdebughost='localhost' || xdebughost='host.docker.internal'
+            mpdk_sh 'printf "xdebug.mode = debug\nxdebug.client_host = '"$xdebughost"'\n" > /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini'
+            mpdk_sh pecl install xdebug
+            mpdk_sh docker-php-ext-enable xdebug
+            docker restart "$COMPOSE_PROJECT_NAME"-webserver-1
+        fi
+    fi
+}
+
+mpdk_initphpunit() {
+    if [[ $1 -eq 0 ]] && [[ $2 -eq 1 ]]; then
+        mpdk_sh php admin/tool/phpunit/cli/init.php
+    fi
+}
+
+mpdk_initbehat() {
+    if [[ $1 -eq 0 ]] && [[ $2 -eq 1 ]]; then
+        mpdk_sh php admin/tool/behat/cli/init.php
+    fi
+}
+
+
+mpdk_init() {
+    #Parse local options
+    phpunit=0;behat=0;dev=0
+    local OPTIND
+    while getopts "tbd" options; do
+        case "${options}" in
+            t ) phpunit=1;;
+            b ) behat=1;;
+            d ) dev=1;;
+        esac
+    done
+    [ $phpunit -eq 0 ] && [ $behat -eq 0 ] && dev=1
+    #Check if already initialized 
+    readydev=0;readyphpunit=0;readybehat=0
+    if [ -f "$IROOT/.init" ];then
+        set $(cat $IROOT/.init)
+        readydev="$1"
+        readyphpunit="$2"
+        readybehat="$3"
+    fi
+    #Replace "_" with " " from the instance name to use as Moodle title
+    moodle_desc="$(basename $(dirname $IROOT)  | sed 's/_/ /g')"
+    #Install moodle if necessary
+    mpdk_initdev $readydev $dev $moodle_desc & 
+    mpdk_initphpunit $readyphpunit $phpunit &
+    mpdk_initbehat $readybehat $behat &
+    wait
+    [[ $readydev -eq 1 ]] &&  dev=1
+    [[ $readyphpunit -eq 1 ]] &&  phpunit=1
+    [[ $readybehat -eq 1 ]] &&  behat=1
+    printf "$dev $phpunit $behat" > $IROOT/.init
+}

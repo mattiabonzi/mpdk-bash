@@ -1,10 +1,27 @@
 # Created by 
 https://www.toptal.com/developers/gitignore/api/phpunit,phpstorm+all,macos,windows,linux,eclipse,visualstudiocode,netbeans,python,node,grunt,sublimetext,phpcodesniffer,composer
-# Edit at 
-https://www.toptal.com/developers/gitignore?templates=phpunit,phpstorm+all,macos,windows,linux,eclipse,visualstudiocode,netbeans,python,node,grunt,sublimetext,phpcodesniffer,composer
+
+#Ignore all, then include again mpdk, .asset, README.md, LICENSE
+*
+!mpdk
+!.asset
+!.asset/**
+!README.md
+!LICENSE
 
 #Test lib
 .asset/t/osht.sh
+
+#Config and dependencies
+.asset/config
+.asset/myplugin
+.asset/cache/
+.asset/recipe/
+.asset/moodle-docker
+
+#ENV file
+env
+ENV
 
 ### Composer ###
 composer.phar

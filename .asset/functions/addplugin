@@ -1,0 +1,10 @@
+mpdk_addplugin() {
+    name=$1
+    path=$2
+    if [ -z "$path" ] || [ -z "$name" ]; then
+        printf "\nExepcting 2 argument: <component name> <relative path>"
+        exit
+    fi
+    printf "$name $path\n" >> "$ASSET"/myplugin
+    printf "\nPlugin '$name', relative path '$path' has been added to the list\n"
+}

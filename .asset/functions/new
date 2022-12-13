@@ -1,0 +1,42 @@
+
+
+
+#Create a new instance, download moodle codebase
+mpdk_new() {
+    #Parse local options
+    version="";dev=1
+    local OPTIND
+    while getopts "v:t" options; do
+        case "${options}" in
+            v ) version=${OPTARG};;
+            t ) dev=0;;
+        esac
+    done
+    name=${!OPTIND};((OPTIND++));
+    #Sanity check
+    [ -d "$MPDK_ROOT"/"$name" ] && printf '\nInstance already exist' && exit 1
+    [ -z "$name" ] && printf "\nA name is reuiqred for the new instance!" && exit 1
+    [ -z "$version" ] && version="" || version="-v $version"
+    #Create dir and change pwd
+    mkdir "$MPDK_ROOT"/"$name"
+    cd "$MPDK_ROOT"/"$name"/ || (printf '\nSomething went wrong...' && exit 1)
+    #Download moodle (the cache is used if present)
+    mpdk_download_moodle $version
+    #Get the archive name
+    moodle="$(ls "$MPDK_ROOT"/"$name"/moodle*)"
+    #Extract the archive
+    unzip -qq "$moodle"
+    #Remove the archive
+    rm "$moodle"
+    touch "$MPDK_ROOT"/"$name"/moodle/.mpdkinstance
+    #If "-d" (develpment mode) download dev Moodle plugins local_codechecker, local_moodlecheck, tool_pluginskel
+    if [ $dev -eq 1 ];then
+        git clone --quiet --depth 1 https://github.com/moodlehq/moodle-local_codechecker.git "$MPDK_ROOT"/"$name"/moodle/local/codechecker
+        git clone --quiet --depth 1 https://github.com/moodlehq/moodle-local_moodlecheck.git "$MPDK_ROOT"/"$name"/moodle/local/moodlecheck
+        git clone --quiet --depth 1 https://github.com/mudrd8mz/moodle-tool_pluginskel.git "$MPDK_ROOT"/"$name"/moodle/admin/tool/pluginskel
+        #Remove ".git" as we don't need to keep track of changes here 
+        rm -rf "$MPDK_ROOT"/"$name"/admin/tool/pluginskel/.git "$MPDK_ROOT"/"$name"/local_moodlecheck/.git "$MPDK_ROOT"/"$name"/moodle/local/codechecker/.git
+    fi
+
+    printf "\nInstance ready, located in '$MPDK_ROOT/$name/' run: 'cd $name && mpdk run' to run it\n"
+}

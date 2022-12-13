@@ -1,0 +1,23 @@
+#Execute all or the specified PhpUnit test
+mpdk_test() {
+    #Parse local options
+    phpunit=1
+    local OPTIND
+    while getopts "b" options; do
+        case "${options}" in
+            b ) phpunit=0;;
+        esac
+    done
+    test=$1
+     #If $test is not provided, ask confirmation before execute all test
+    if [ -z "$test" ]; then
+        mpdk_confirmation "Do you want to execute all the test defined in Moodle? This will require a lot of time (y/n) : "
+    fi
+     #Run the test
+    if [ $phpunit -eq 1 ];then
+        mpdk_sh php admin/tool/phpunit/cli/util.php --run "$test"
+    else
+        [ -n "$test" ] && test='--tags=@'$test
+        docker exec -u www-data "$COMPOSE_PROJECT_NAME-webserver-1" php admin/tool/behat/cli/run.php $test
+    fi
+}

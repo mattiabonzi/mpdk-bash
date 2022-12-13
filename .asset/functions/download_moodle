@@ -1,0 +1,67 @@
+mpdk_download_moodle() {
+    #Parse local options
+    version=latest;cache=1;link='';returnurl=0;
+    local OPTIND
+    while getopts "ucv:" options; do
+        case "${options}" in
+            u ) returnurl=1;;
+            c ) cache=0;;
+            v ) version=${OPTARG};;
+        esac
+    done
+    
+    if [ "$version" = "latest" ];then
+        link="$( wget -q  -O - https://download.moodle.org/releases/latest/ | grep -o "https://download\.moodle\.org/download\.php/stable\d\+/moodle-latest-\d\+\.zip" | head -1 | sed 's+stable+direct/stable+g')"
+    else
+        if [[ "${version:0:1}" = 4 ]];then
+            branch=$(echo $version | cut -d '.' -f1,2 | tr '.' 0)
+        else
+            branch=$(echo $version | cut -d '.' -f1,2 | tr -d '.')
+        fi 
+        echo $version
+        if [[ $version =~ [0-9]+\.[0-9]+\.[0-9]+ ]];then
+        echo "heey" $version
+            if [ "${version:4}" = 0 ];then 
+                version="${version:0:3}"
+            fi
+            link="https://download.moodle.org/download.php/direct/stable${branch}/moodle-$version.zip"
+        elif [[ $version =~ [0-9]+\.[0-9]+ ]];then
+            echo "oooo"$version"ooo"
+            link="https://download.moodle.org/download.php/direct/stable${branch}/moodle-latest-${version//\.}.zip"
+        else
+            echo "Use syntax 'x.x' or 'x.x.x' to specify the version"
+        fi
+    fi
+    if [ $returnurl -eq 1 ];then
+        echo $link
+        exit
+    fi
+    if [ $cache -eq 1 ];then
+        mpdk_call_wget $link
+    else
+        wget --quite $link
+    fi
+}
+
+#Check the cache, if the reqeust version is already present, serve from cache otherwise download with wget
+mpdk_call_wget() {
+    
+    #Get the url from the argument passed to wget
+    url="$(echo "$@" | sed 's/.*\(https.*tgz\).*/\1/')"
+    #Get the filename from the url
+    filename="$(basename "$url")"
+    #Get the hash of the url
+    hash="$(echo "$url" | md5)"
+    #Check the cache
+    if [ -d "$ASSET"/cache/"$hash" ];then
+        #Copy the file from the cache
+        cp -r "$ASSET"/cache/"$hash"/"$filename" ./"$filename"
+    else
+        #Download the file using wget and the original argument
+        wget --quiet $@
+        #Create the entry inside the cache dir
+        mkdir "$ASSET"/cache/"$hash"/
+        #Copy the archive in the cache
+        cp -r ./"$filename" "$ASSET"/cache/"$hash"/"$filename"
+    fi
+}

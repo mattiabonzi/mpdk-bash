@@ -4,6 +4,7 @@
 # Utility script for the development of Moodle's plugin
 # Use at your own risk.
 
+VERSION="0.2.0 (Beta)"
 #This file
 THISFILE=$( readlink "${BASH_SOURCE[0]}" ) || THISFILE="${BASH_SOURCE[0]}"
 #MPDK root (our home)
@@ -20,22 +21,55 @@ DBPORT=8001
 [ -f "$ASSET/config" ] && source $ASSET/config
 #Eventually load the own created plugin list
 [ -f "$ASSET/myplugin" ] && MYPLUGIN="$(cat $ASSET/myplugin)"
-#Load the functions
-source $ASSET/functions
+#Load functions
+for func in $(ls $ASSET/functions);do
+    source $ASSET/functions/$func
+done
+#Load getoptions (github.com/ko1nksm/getoptions)
+source $ASSET/getoptions.sh
 
-#Parse global options
-while getopts "n:i:hH" options; do
-    case "${options}" in
-        i ) IROOT=${OPTARG};shift 2;;
-        n ) IROOT=$MPDK_ROOT/${OPTARG}/moodle;shift 2;;
-        h ) mpdk_help; exit;;
-        H ) mpdk_extendedhelp; exit;;
-    esac
-done  
+# shellcheck disable=SC1083
+mpdk_parser_definition() {
+	setup   OARGS help:usage abbr:true width:"35,18" no:'0' -- '' "Usage: mpdk [global options...] <command> [options...] [arguments...]"
+	msg -- 'Moodle Plugin Development Kit (wrapper for github.com/moodlehq/moodle-docker)'
+	msg -- '' 'Global Options:'
+	flag NON_INTERACTIVE -c --non-interactive init:@no -- "Do not ask for value to input, use only provided arguent"
+	param INSTANCE_NAME -n --name -- "Name of an existing instance to select (alternative to -i)"
+	param INSTANCE_ROOT -i --instance -- "Path to an existing instance to select (alternative to -n)" 
+	disp :usage -h --help -- "Display this screen"
+	disp :mpdk_extendedhelp -H --exthelp -- "Open documentaion (requires a connection)"
+	disp VERSION --version -- "Show installed version"
 
-#If the instance root is NOT defined, try to guess it
+	msg -- '' "Commands:"
+	cmd install -- "Install the enviroment and download dependencies (execute just one time)"
+	cmd drop hidden:true -- "(DO NOT USE) Delete all data and file from this mpdk installation"
+	cmd new -- "Create a new instance"
+	cmd run -- "Run (and init if necessary) the instance"
+	cmd init -- "Init an instance"
+	cmd stop -- "Stop the instance, but retain the data (docker-compose stop)"
+	cmd down -- "Stop the instance, and discard the data (docker-compose down)"
+	cmd remove -- "Remove (delete) the instance codebase"
+	cmd test -- "Execute all or the specified PhpUnit/Behat test"
+	cmd sniff -- "Execute PhpCS and/or Grunt ESlint for the specified plugins\nIt only works with registered plugin, see 'addplugin'"
+	cmd sh -- "Execute commands inside the container\nShortcut for 'docker exec {container-name} bash -l -c <commands>'"
+	cmd ps -- "Show the list of running docker container for the instance"
+	cmd newplugin -- "Interactivly create a new plugin structure with tool_pluginskel\nRefers to tool_pluginskel documentation for help with the recipe"
+	cmd addplugin -- "Add a plugin to the registered plugins list (for code checking and version management)"
+	cmd myplugin -- "Show a list of registered plugin and their installed versions on every instance"
+    msg -- '' 'Run "mpdk <command> help" for help on specif command' ''
+}
+
+eval "$(getoptions mpdk_parser_definition parse)"
+parse "$@"
+eval "set -- $OARGS"
+
+#If the instance root is NOT defined, try first to find it then to guess it
 if [ -z "$IROOT" ]; then
-    if [ -f $(pwd)"/.mpdkinstance" ]; then
+    if [ -n "$INSTANCE_NAME" ]; then 
+        IROOT="$MPDK_ROOT/${INSTANCE_NAME}/moodle";
+    elif [ -n "$INSTANCE_ROOT" ]; then
+        IROOT="$INSTANCE_ROOT"
+    elif [ -f $(pwd)"/.mpdkinstance" ]; then
         IROOT=$(pwd)
     elif [ -f $(pwd)"/moodle/.mpdkinstance" ]; then
         IROOT=$(pwd)"/moodle"
@@ -64,16 +98,12 @@ if  [ -n "$IROOT" ];then
     #Eventually load the instance env file
     [ -f "$MPDK_ROOT/env" ] && source $MPDK_ROOT/env
 fi
-#Export ENV for redirect moosh wget call to this script (for caching Moodle version)
-export MOOSH_WGET="$MPDK_ROOT/mpdk download-moodle"
 export MOODLE_DOCKER_PHP_VERSION=8.0
 #Eventually load the global env file
 [ -f "$MPDK_ROOT/env" ] && source $MPDK_ROOT/env
 #Parse command
-COMMAND=$1;shift
 
-#Parse first command that do not require an instance to be defined
-case $COMMAND in
+case $1 in
     new ) mpdk_new $@ & mpdk_spinner $!;exit;;
     download-moodle ) mpdk_download_moodle $@;exit;;
     install ) mpdk_install $@;exit;;
@@ -85,16 +115,6 @@ case $COMMAND in
     down ) mpdk_downstopremove $@;exit;;
     remove ) mpdk_downstopremove -r $@;exit;;
     ps ) mpdk_ps $@;exit;exit;;
-esac
-
-#Check if the instance root is defined
-if  [ -z "$IROOT" ];then
-    echo "An instance must be defined to run this command!"
-    mpdk_usage
-fi
-
-#Parse all the other commands
-case $COMMAND in
     init ) mpdk_init $@;exit;;
     run ) mpdk_run $@;;
     test ) mpdk_test $@;;

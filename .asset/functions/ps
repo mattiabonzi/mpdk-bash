@@ -1,0 +1,37 @@
+mpdk_parser_definition_ps() {
+	setup   OARGS help:usage abbr:true -- '' "Usage: mpdk ps [-asn]"
+	msg -- 'Show the list of running docker container for the instance'
+	msg -- '' 'Options:'
+	flag ALL  -a --all -- "Show info for all running instance (not only the selcted one)"
+    flag STOPPED -s --stopped -- "Show info for stopped instance (only useful with -a)"
+    flag NOT_INIT -n --not-init -- "Show info for non initialized instance (only useful with -a)"
+	disp :usage  -h --help -- "Display this screen"
+}
+
+mpdk_ps() {
+    eval "$(getoptions mpdk_parser_definition_ps parse "$0")"
+    parse "$@"
+    eval "set -- $OARGS"
+    #Parse local options
+    if [[ $ALL -eq 1 ]];then
+        ilist="$(ls $MPDK_ROOT)"
+        for instance in $ilist;do
+            [ ! -d "$MPDK_ROOT/$instance/moodle" ] && continue
+            out="⎈ $instance\n\n"
+            out+="$(mpdk -n $instance ps)"
+            out+="\n------------------------------\n\n"
+            running=$(mpdk_isrunning "$out")
+            if  [[ $running -eq 1 ]] ||
+                ([[ $NOT_INIT -eq 1 ]] &&
+                [[ $(mpdk_isinit "$out") -eq 0 ]]) || 
+                ([[ $STOPPED -eq 1 ]] && 
+                [[ $running -eq 0 ]])
+             then
+                printf "$out"
+            fi
+        done
+    else
+        mpdk_requireinstance 'or run "mpdk ps -a" for all\n\n'
+        "$ASSET"/moodle-docker/bin/moodle-docker-compose ps -a
+    fi
+}

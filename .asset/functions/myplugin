@@ -1,0 +1,17 @@
+mpdk_myplugin() {
+    ilist="$(ls $MPDK_ROOT)"
+    while read line; do
+        set $line
+        o+="$2 $1\n"
+        for instance in $ilist;do
+            vfile="$MPDK_ROOT/$instance/moodle/$2/$1/version.php"
+            if [ -f "$vfile" ];then
+                cmd='define("MOODLE_INTERNAL", 1); @include "'$vfile'"; echo $plugin->version;'
+                version="$(php -r "$cmd")"
+                o+="   $instance   $version\n"
+            fi
+        done
+        o+="\n\n---------------\n"
+    done < "$ASSET"/myplugin
+    printf "$o"
+}

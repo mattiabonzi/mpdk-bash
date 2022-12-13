@@ -1,0 +1,58 @@
+
+mpdk_parser_definition_ps() {
+	setup   OARGS help:usage abbr:true -- '' "Usage: mpdk ps [-asn]"
+	msg -- 'Show the list of running docker container for the instance'
+	msg -- '' 'Options:'
+	flag DEV  -d --dev -- "Show info for all running instance (not only the selcted one)"
+    flag PHPUNIT -t --phpunit -- "Show info for all running instance (not only the selcted one)"
+    flag BEHAT -b --behat -- "Show info for all running instance (not only the selcted one)"
+    param WEBPORT -p --webport -- "Show info for stopped instance (only useful with -a)"
+    param DBPORT -P --dbport -- "Show info for non initialized instance (only useful with -a)"
+	disp :usage  -h --help -- "Display this screen"
+}
+
+#Start an instance (docker-compose up)
+mpdk_run() {
+    #Parse local options
+    local OPTIND
+    while getopts "p:P:tbd" options; do
+        case "${options}" in
+            p ) WEBPORT=${OPTARG};shift 2;;
+            P ) DBPORT=${OPTARG};shift 2;;
+            d ) dev=1;;
+        esac
+    done
+    #Sanity check
+    [ -z "$IROOT" ] && printf "\nA path to the instance is reuiqred" && exit 1
+    portmessage="port is not free, choose another one or stop the service using this port: "
+    [ -n "$(lsof -i tcp:$WEBPORT -s tcp:listen)" ] && printf "\nWeb $portmessage $WEBPORT" && exit
+    [ -n "$(lsof -i tcp:$DBPORT -s tcp:listen)" ] && printf "\nDatabase $portmessage $DBPORT" && exit
+    #Export web/db port ENV for moodle-docker
+    export MOODLE_DOCKER_WEB_PORT=$WEBPORT
+    export MOODLE_DOCKER_DB_PORT=$DBPORT
+    #Replace "_" with " " from the instance name to use as Moodle title
+    moodle_desc="$(basename "$IROOT" | sed "s/_/ /g")"
+    #Use the config.php file bundled with moodle-docker
+    cp "$ASSET"/moodle-docker/config.docker-template.php "$MOODLE_DOCKER_WWWROOT"/config.php
+    #Compose up
+    "$ASSET"/moodle-docker/bin/moodle-docker-compose up -d 1> $IROOT/../compose-up.log
+    mpdk_spinner $!
+    #Wait for DB (maybe useless for pgsql, here for safety)
+    "$ASSET"/moodle-docker/bin/moodle-docker-wait-for-db 1> /dev/null
+    mpdk_spinner $!
+    #Install moodle if necessary
+    [[ $DEV -eq 1 ]] && DEV='-d'
+    [[ $PHPUNIT -eq 1 ]] && PHPUNIT='-t'
+    [[ $BEHAT -eq 1 ]] && BEHAT='-b'
+    mpdk_init "$DEV" "$PHPUNIT" "$BEHAT"
+    #Show "docker ps" to the user
+    "$ASSET"/moodle-docker/bin/moodle-docker-compose ps
+    #Mark as initialized
+    printf "\nPiattaforma online http://localhost:$MOODLE_DOCKER_WEB_PORT"
+    printf "\nUser: admin   |    Passowrd: admin\n"    
+    #Open the browser only if it's a devinstance
+    if [ $dev -eq 1 ]; then
+        sleep 3
+        open  http://localhost:"$MOODLE_DOCKER_WEB_PORT"
+    fi
+}
