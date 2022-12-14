@@ -1,18 +1,36 @@
+# Copyright (C) 2022 Mattia Bonzi <mattia@mattiabonzi.it>
+# 
+# This file is part of Mpdk.
+# 
+# Mpdk is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# Mpdk is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Mpdk.  If not, see <http://www.gnu.org/licenses/>.
 
 
+mpdk_parser_definition_new() {
+	setup   OARGS help:usage abbr:true -- '' "Usage: mpdk new [Options...] <name>"
+	msg -- 'Create '
+	msg -- '' 'Options:'
+	param VERSION  -v --version -- "Moodle version to install"
+    flag TEST -t --testing -- "Create a test-only instance (do not install dev utils)"
+	disp :usage  -h --help -- "Display this screen" 
+}
 
 #Create a new instance, download moodle codebase
 mpdk_new() {
-    #Parse local options
-    version="";dev=1
-    local OPTIND
-    while getopts "v:t" options; do
-        case "${options}" in
-            v ) version=${OPTARG};;
-            t ) dev=0;;
-        esac
-    done
-    name=${!OPTIND};((OPTIND++));
+    eval "$(getoptions mpdk_parser_definition_install parse "$0")"
+    parse "$@"
+    eval "set -- $OARGS"
+    name=$1
     #Sanity check
     [ -d "$MPDK_ROOT"/"$name" ] && printf '\nInstance already exist' && exit 1
     [ -z "$name" ] && printf "\nA name is reuiqred for the new instance!" && exit 1
@@ -21,7 +39,7 @@ mpdk_new() {
     mkdir "$MPDK_ROOT"/"$name"
     cd "$MPDK_ROOT"/"$name"/ || (printf '\nSomething went wrong...' && exit 1)
     #Download moodle (the cache is used if present)
-    mpdk_download_moodle $version
+    mpdk_download_moodle "$version"
     #Get the archive name
     moodle="$(ls "$MPDK_ROOT"/"$name"/moodle*)"
     #Extract the archive
@@ -30,7 +48,7 @@ mpdk_new() {
     rm "$moodle"
     touch "$MPDK_ROOT"/"$name"/moodle/.mpdkinstance
     #If "-d" (develpment mode) download dev Moodle plugins local_codechecker, local_moodlecheck, tool_pluginskel
-    if [ $dev -eq 1 ];then
+    if [ -z "$TEST" ];then
         git clone --quiet --depth 1 https://github.com/moodlehq/moodle-local_codechecker.git "$MPDK_ROOT"/"$name"/moodle/local/codechecker
         git clone --quiet --depth 1 https://github.com/moodlehq/moodle-local_moodlecheck.git "$MPDK_ROOT"/"$name"/moodle/local/moodlecheck
         git clone --quiet --depth 1 https://github.com/mudrd8mz/moodle-tool_pluginskel.git "$MPDK_ROOT"/"$name"/moodle/admin/tool/pluginskel
@@ -38,5 +56,5 @@ mpdk_new() {
         rm -rf "$MPDK_ROOT"/"$name"/admin/tool/pluginskel/.git "$MPDK_ROOT"/"$name"/local_moodlecheck/.git "$MPDK_ROOT"/"$name"/moodle/local/codechecker/.git
     fi
 
-    printf "\nInstance ready, located in '$MPDK_ROOT/$name/' run: 'cd $name && mpdk run' to run it\n"
+    printf "\nInstance ready, located in '%s/%s/' use: 'mpdk run' to run it\n" "$MPDK_ROOT" "$name"
 }

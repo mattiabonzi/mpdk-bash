@@ -1,40 +1,71 @@
+# Copyright (C) 2022 Mattia Bonzi <mattia@mattiabonzi.it>
+# 
+# This file is part of Mpdk.
+# 
+# Mpdk is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# Mpdk is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Mpdk.  If not, see <http://www.gnu.org/licenses/>.
+
+
+
+mpdk_parser_definition_sinff() {
+	setup   OARGS help:usage abbr:true -- '' "Usage: mpdk sniff [Options...] <names>"
+	msg -- 'Execute PhpCS and/or Grunt ESlint for the specified plugins'
+    msg -- "Only works with registered plugin, see 'mpdk addplugin --help'"
+	msg -- '' 'Options:'
+	flag PHP -p --phpcs -- "Execute only PhpCs (Incompatible with -g)"
+    flag GRUNT -g --grunt -- "Execute only Grunt/Eslint (Incompatible with -p)"
+    disp :usage  -h --help -- "Display this screen"
+    msg -- '' 'Arguments:'
+    msg label:'<names>' -- "Plugin(s) component name to be cheked (E.g. auth_manual), if not specified will be checked all registered plugins"
+    
+
+} 
+       
+
+
 #Execute code checks (PhpCs and Grunt)
 mpdk_sniff() {
     #Parse local options
-    php=0;grunt=0
-    local OPTIND
-    while getopts "pg" options; do
-        case "${options}" in
-            p ) php=1;shift;;
-            g ) grunt=1;shift;;
-        esac
-    done
-    if [ $php -eq 0 ] && [ $grunt -eq 0 ];then
-        php=1;grunt=1
+    eval "$(getoptions mpdk_parser_definition_sinff parse "$0")"
+    parse "$@"
+
+    if [ -z "$PHP" ] && [ -z "$GRUNT" ];then
+        PHP=1;GRUNT=1
     fi
     #Check that the instance in running
     mpdk_requirerunning
     #Get plugins name, if not provided will be executed all registred plugins
+    # shellcheck disable=2124
     plugins="$@"
-    if [ -z $plugins ];then
+    if [ -z "$plugins" ];then
         plugins="$(mpdk_getmyplugins)"
     fi
     #Output the installed rule
     mpdk sh local/codechecker/phpcs/bin/phpcs -i 
     printf "\n--------------------------------"
     for plugin in $plugins;do
-        fpath="$(mpdk_getpluginpath $plugin)"
+        fpath="$(mpdk_getpluginpath "$plugin")"
 
         #Run the check
-        if [ -d $IROOT$fpath ];then
-            printf "\n\n\nPLUGIN: $plugin\n"
-            if [ $php -eq 1 ];then
+        if [ -d "$IROOT/$fpath" ];then
+            printf "\n\n\nPLUGIN: %s\n" "$plugin"
+            if [ -n "$PHP" ];then
                 printf "PHP\n\n"
-                mpdk_sh 'php local/codechecker/phpcs/bin/phpcs -v --colors '$fpath
+                mpdk_sh php local/codechecker/phpcs/bin/phpcs -v --colors "$fpath"
             fi
-            if [ $grunt -eq 1 ];then
+            if [ -n "$GRUNT" ];then
                 printf "\n\nJS/CSS\n\n"
-                mpdk_sh 'grunt --root="./'$fpath'" eslint'
+                mpdk_sh grunt --root=./"$fpath" eslint
             fi
             printf "\n\n--------------------------------"
         fi

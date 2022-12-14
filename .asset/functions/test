@@ -1,23 +1,47 @@
+# Copyright (C) 2022 Mattia Bonzi <mattia@mattiabonzi.it>
+# 
+# This file is part of Mpdk.
+# 
+# Mpdk is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# Mpdk is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Mpdk.  If not, see <http://www.gnu.org/licenses/>.
+
+
+mpdk_parser_definition_test() {
+	setup   OARGS help:usage abbr:true -- '' "Usage: mpdk test [Options...]"
+	msg -- 'Execute all or the specified PhpUnit/Behat test'
+	msg -- '' 'Options:'
+	flag BEHAT -b --behat -- "Execute Behat test (default to PhpUnit)"
+    disp :usage  -h --help -- "Display this screen"
+    msg -- '' 'How to specify a test:'
+    msg label:'PhpUnit' -- 'Use the path the test file (E.g. "auth/manual/tests/manual_test.php")'
+    msg label:'Behat' -- 'Use the tag associated with the test (E.g. "auth_manual")'
+    
+} 
+
 #Execute all or the specified PhpUnit test
 mpdk_test() {
     #Parse local options
-    phpunit=1
-    local OPTIND
-    while getopts "b" options; do
-        case "${options}" in
-            b ) phpunit=0;;
-        esac
-    done
-    test=$1
+    eval "$(getoptions mpdk_parser_definition_test parse "$0")"
+    parse "$@"
      #If $test is not provided, ask confirmation before execute all test
     if [ -z "$test" ]; then
         mpdk_confirmation "Do you want to execute all the test defined in Moodle? This will require a lot of time (y/n) : "
     fi
      #Run the test
-    if [ $phpunit -eq 1 ];then
-        mpdk_sh php admin/tool/phpunit/cli/util.php --run "$test"
+    if [ -n "$BEHAT" ];then
+       [ -n "$test" ] && test='--tags=@'$test
+        docker exec -u www-data "$COMPOSE_PROJECT_NAME-webserver-1" php admin/tool/behat/cli/run.php "$test"
     else
-        [ -n "$test" ] && test='--tags=@'$test
-        docker exec -u www-data "$COMPOSE_PROJECT_NAME-webserver-1" php admin/tool/behat/cli/run.php $test
+        mpdk_sh php admin/tool/phpunit/cli/util.php --run "$test"
     fi
 }

@@ -1,0 +1,38 @@
+# Copyright (C) 2022 Mattia Bonzi <mattia@mattiabonzi.it>
+# 
+# This file is part of Mpdk.
+# 
+# Mpdk is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# Mpdk is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Mpdk.  If not, see <http://www.gnu.org/licenses/>.
+
+#Delete everything (this file also)
+mpdk_update() {
+    #Ask confirmation to the users
+    #Is required to answer exactly "YES" (in capital letter)
+    q="Are sure you want to update mpdk? (YES/n)"
+    mpdk_confirmation "$q" "Aborting..." "Please answer YES (in capital letter) or no.\n" "YES"
+    echo "Current version: $MPDK_VERSION"
+    latest="$(wget -q -O - "https://raw.githubusercontent.com/mattiabonzi/mpdk/main/mpdk" | grep  "MPDK_VERSION" | cut -d '"' -f2)"
+    echo "Latest version: $latest"
+    if [[ "$MPDK_VERSION" = "$latest" ]];then
+        echo "Latest version already installed"
+        exit
+    fi
+    rm --rf rm -rf ./.asset/moodle-docker
+    git fetch --all 
+    git reset --hard origin/main
+    chmod +x "$MPDK_ROOT/mpdk"
+    "$MPDK_ROOT"/mpdk install -u "$MPDK_VERSION"
+    echo "Updated to:"
+    "$MPDK_ROOT"/mpdk -v
+}

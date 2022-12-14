@@ -1,3 +1,20 @@
+# Copyright (C) 2022 Mattia Bonzi <mattia@mattiabonzi.it>
+# 
+# This file is part of Mpdk.
+# 
+# Mpdk is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# Mpdk is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Mpdk.  If not, see <http://www.gnu.org/licenses/>.
+
 
 
 
@@ -10,10 +27,10 @@ mpdk_confirmation() {
     yesanswer=${4:-"[Yy]*"}
     noanswer=${5:-"[Nn]*"}
     while true; do
-        read -p "$question" yn
+        read -r -p "$question" yn
         case $yn in
-            $yesanswer ) break;;
-            $noanswer ) echo "$answerno"; exit;;
+            "$yesanswer" ) break;;
+            "$noanswer" ) echo "$answerno"; exit;;
             * ) echo "$notaccepted";;
         esac
     done
@@ -22,15 +39,15 @@ mpdk_confirmation() {
 
 mpdk_getmyplugins() {
     plugins=""
-    while read line; do
-        set $line
+    while read -r line; do
+        set "$line"
         plugins+=$1" "
     done < "$ASSET"/myplugin
-    echo $plugins
+    echo "$plugins"
 }
 
 mpdk_getpluginpath() {
-    grep "^$1\s" $ASSET/myplugin | cut -d' ' -f2
+    grep "^$1\s" "$ASSET/myplugin" | cut -d' ' -f2
 }
 
 
@@ -41,51 +58,51 @@ mpdk_spinner() {
     pid=$1
     spin='⣾⣽⣻⢿⡿⣟⣯⣷'
     i=0
-    while kill -0 $pid 2>/dev/null;do
-        i=$(( (i+1) %4 ))
-        printf "\r${spin:$i:1} Working...\t"
+    while kill -0 "$pid" 2>/dev/null;do
+        i=$(( (i+1) %4))
+        printf "\r%s Working...\t" "${spin:$i:1}"
         sleep .08
     done
     tput cnorm
 }
 
 mpdk_isrunning() {
-     [[ "$1" =~ .*"Up".*"80/tcp".*"webserver-1".* ]] &&  echo 1 || echo 0
+     [[ "$1" =~ .*"Up".*"80/tcp".*"webserver-1".* ]] && echo true
 }
 
 mpdk_requirerunning() {
-    local msg="The instance '$COMPOSE_PROJECT_NAME' is not running, use 'mpdk run' to start it"
-    [ $(mpdk_isrunning "$(mpdk_ps)") -eq 0 ] && echo $msg && exit 1
+    local msg="The instance \"$COMPOSE_PROJECT_NAME\" is not running, use mpdk run to start it"
+    [ "$(mpdk_isrunning "$(mpdk_ps)")" -eq 0 ] && echo "$msg" && exit 1
 }
 
 mpdk_isinstance() {
-     [ -f "$IROOT/.mpdkinstance" ] &&  echo 1 || echo 0
+     [ -f "$IROOT/.mpdkinstance" ]  && echo true
 }
 
 mpdk_requireinstance() {
     #If the .mpdkinstance file does not exist, exit 
     if [ -z "$IROOT" ];then
         printf "\nAn instance must be defined to run this command!\n"
-    elif [ "$(mpdk_isinstance)" -eq 0 ;then
-        printf "\nThe speficied path is not an MPDK instance ($IROOT)\n"
+    elif [ -n "$(mpdk_isinstance)" ];then
+        printf "\nThe speficied path is not an MPDK instance (%s)\n" "$IROOT"
     fi
     mpdk_usage "$1"
     exit
 }
 
 mpdk_isinit() {
-     [ -f "$IROOT/.init" ] &&  echo 1 || echo 0
+     [ -f "$IROOT/.init" ] && echo true
 }
 
 
 mpdk_requireinit() {
-    local msg="The instance '$COMPOSE_PROJECT_NAME' has not been initialized, use 'mpdk init' to init i or 'mpdk run' to init and start it"
-    [ $(mpdk_isinit) -eq 0 ] && echo $msg && exit 1
+    local msg="The instance \"$COMPOSE_PROJECT_NAME\" has not been initialized, use \"mpdk init\" to init i or \"mpdk run\" to init and start it"
+    [ -z "$(mpdk_isinit)" ] && echo "$msg" && exit 1
 }
 
 mpdk_usage() {
     msg=${1:-"\n"}
-    printf "Usage: mpdk [global options...] <command> [options...] [arguments...]\nTry 'mpdk -h' for help $msg"
+    printf "Usage: mpdk [global options...] <command> [options...] [arguments...]\nTry 'mpdk -h' for help %s" "$msg"
 }
 
 #Show extended help message

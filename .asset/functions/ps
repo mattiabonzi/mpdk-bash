@@ -1,3 +1,21 @@
+# Copyright (C) 2022 Mattia Bonzi <mattia@mattiabonzi.it>
+# 
+# This file is part of Mpdk.
+# 
+# Mpdk is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# Mpdk is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Mpdk.  If not, see <http://www.gnu.org/licenses/>.
+
+
 mpdk_parser_definition_ps() {
 	setup   OARGS help:usage abbr:true -- '' "Usage: mpdk ps [-asn]"
 	msg -- 'Show the list of running docker container for the instance'
@@ -9,16 +27,15 @@ mpdk_parser_definition_ps() {
 }
 
 mpdk_ps() {
+    #Parse local options
     eval "$(getoptions mpdk_parser_definition_ps parse "$0")"
     parse "$@"
-    eval "set -- $OARGS"
-    #Parse local options
     if [[ $ALL -eq 1 ]];then
-        ilist="$(ls $MPDK_ROOT)"
+        ilist="$(ls "$MPDK_ROOT")"
         for instance in $ilist;do
             [ ! -d "$MPDK_ROOT/$instance/moodle" ] && continue
             out="⎈ $instance\n\n"
-            out+="$(mpdk -n $instance ps)"
+            out+="$(mpdk -n "$instance" ps)"
             out+="\n------------------------------\n\n"
             running=$(mpdk_isrunning "$out")
             if  [[ $running -eq 1 ]] ||
@@ -27,8 +44,8 @@ mpdk_ps() {
                 ([[ $STOPPED -eq 1 ]] && 
                 [[ $running -eq 0 ]])
              then
-                printf "$out"
-            fi
+                printf "%s" "$out"
+             fi
         done
     else
         mpdk_requireinstance 'or run "mpdk ps -a" for all\n\n'

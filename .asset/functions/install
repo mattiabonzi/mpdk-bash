@@ -1,10 +1,37 @@
+# Copyright (C) 2022 Mattia Bonzi <mattia@mattiabonzi.it>
+# 
+# This file is part of Mpdk.
+# 
+# Mpdk is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# Mpdk is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Mpdk.  If not, see <http://www.gnu.org/licenses/>.
 
 
-
+mpdk_parser_definition_install() {
+	setup   OARGS help:usage abbr:true -- '' "Usage: mpdk install [Options...]"
+	msg -- 'Install the environment'
+	msg -- '' 'Options:'
+	param INSTALL_ON_PATH  -g --global --pattern pattern:'yes | no' -- "Install mpdk globaly"
+    param COPYRIGHT_STRING -c --copyright -- "Copyright string, will be used for newly created plugins (only useful with --non-interactive)"
+    param MPDK_EDIOTR -e --editor -- "Path to a code editor (only useful with --non-interactive)"
+    flag UPDATING -u hidden:true
+	disp :usage  -h --help -- "Display this screen" 
+}
 
 
 #Install and download dependencies
 mpdk_install() {
+    eval "$(getoptions mpdk_parser_definition_install parse "$0")"
+    parse "$@"
     #Create dir
     mkdir "$ASSET"/cache "$ASSET"/recipe
     touch "$ASSET"/myplugins "$ASSET"/myplugins
@@ -13,27 +40,54 @@ mpdk_install() {
     #Customzie Moodle-docker
     cp "$ASSET"/local.yml "$ASSET"/moodle-docker/local.yml
     cp "$ASSET"/dockerfile "$ASSET"/moodle-docker/dockerfile
-    #Set the copyright string (for newly created plugin)
-    while true; do
-        read -p "Copyright string, will be used for newly created plugins (Eg. Jonh Smith <jonhsmith@myorg.com>) : " input
-        if [ -n "${input}" ]; then
-            printf "\nexport COPYRIGHT_STRING=\"$input\"" >> "$ASSET"/config
-            break
-        fi    
-    done
-    #Set the editor
-    read -p "What Editor use to edit the code? Insert the full path (or leave blank): " input
-    if [ -n "${input}" ]; then
-        printf "\nexport MPDK_EDIOTR=\"$input\"" >> "$ASSET"/config
+    if [ "$NON_INTERACTIVE" -eq 1 ];then 
+            [ -z "$INSTALL_ON_PATH" ]  && echo "Non interactuive mode: choose if install mpdk globaly" && exit
+            [ -z "$COPYRIGHT_STRING" ] && echo "Non interactuive mode: provide a copyright string" && exit
+            [ -z "$MPDK_EDIOTR" ] && echo "Non interactuive mode: provide a path to an editor" && exit   
     fi
-    #Set mpdk into the global PATH (if the user want)
-    while true; do
-        read -p "Do you want to add mpdk to your PATH? (y/n) : " yn
-        case $yn in
-            [Yy]* ) sudo ln -s "$MPDK_ROOT"/mpdk /usr/local/bin/mpdk; break;;
-            [Nn]* ) break;;
-            * ) printf "\nPlease answer yes or no.";;
-        esac
-    done
+    mpdk_install_setcopyright
+    mpdk_install_seteditor
+    mpdk_install_setpath
     printf "\nInstallation completed, run 'mpdk -h' for a list of avaible commands\n"
+}
+
+
+
+mpdk_install_seteditor() {
+    if [ -z "$MPDK_EDIOTR" ];then
+        read -r -p "What Editor use to edit the code? Insert the full path (or leave blank): " input
+        if [ -n "${input}" ]; then
+            printf "\nexport MPDK_EDIOTR=\"%s\"" "$input" >> "$ASSET"/config
+        fi
+    else 
+        printf "\nexport MPDK_EDIOTR=\"%s\"" "$input" >> "$ASSET"/config
+    fi
+}
+
+
+mpdk_install_setcopyright() {
+if [ -z "$COPYRIGHT_STRING" ];then
+        while true; do
+            read -r -p "Copyright string, will be used for newly created plugins (Eg. Jonh Smith <jonhsmith@myorg.com>) : " input
+            if [ -n "${input}" ]; then
+                printf "\nexport COPYRIGHT_STRING=\"%s\"" "$input" >> "$ASSET"/config
+                break
+            fi    
+        done
+    else
+        printf "\nexport COPYRIGHT_STRING=\"%s\"" "$input" >> "$ASSET"/config
+    fi
+}
+
+mpdk_install_setpath() {
+if [ -z "$MPDK_EDIOTR" ];then
+        while true; do
+            read -r -p "Do you want to add mpdk to your PATH? (y/n) : " yn
+            case $yn in
+                [Yy]* ) sudo ln -s "$MPDK_ROOT"/mpdk /usr/local/bin/mpdk; break;;
+                [Nn]* ) break;;
+                * ) printf "\nPlease answer yes or no.";;
+            esac
+        done
+    fi
 }

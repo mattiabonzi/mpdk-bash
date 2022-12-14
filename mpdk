@@ -1,44 +1,64 @@
 #!/usr/bin/env bash
+# Copyright (C) 2022 Mattia Bonzi <mattia@mattiabonzi.it>
+# 
+# This file is part of Mpdk.
+# 
+# Mpdk is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# Mpdk is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Mpdk.  If not, see <http://www.gnu.org/licenses/>.
 
-# MPDK written by Mattia Bonzi <mattia@mattiabonzi.it>
-# Utility script for the development of Moodle's plugin
-# Use at your own risk.
-
-VERSION="0.2.0 (Beta)"
+# shellcheck disable=SC2034
+MPDK_VERSION="0.2.0 (Beta)"
 #This file
 THISFILE=$( readlink "${BASH_SOURCE[0]}" ) || THISFILE="${BASH_SOURCE[0]}"
 #MPDK root (our home)
-export MPDK_ROOT="$( cd "$( dirname "$THISFILE" )" && pwd -P )"
+MPDK_ROOT="$( cd "$( dirname "$THISFILE" )" && pwd -P )"
 #Asset root 
 ASSET=$MPDK_ROOT/.asset
 #Instance root (NULL if not passed via optoins "-i")
 IROOT=""
 #Default instance web port
+# shellcheck disable=SC2034
 WEBPORT=8000
 #Default instance database port
+# shellcheck disable=SC2034
 DBPORT=8001
 #L#Eventually load the config file
-[ -f "$ASSET/config" ] && source $ASSET/config
-#Eventually load the own created plugin list
-[ -f "$ASSET/myplugin" ] && MYPLUGIN="$(cat $ASSET/myplugin)"
-#Load functions
-for func in $(ls $ASSET/functions);do
-    source $ASSET/functions/$func
-done
+# shellcheck source=/dev/null
+[ -f "$ASSET/config" ] && source "$ASSET/config"
+#Eventually load the own created plugin lis
+# shellcheck disable=SC2034
+[ -f "$ASSET/myplugin" ] && MYPLUGIN="$(cat "$ASSET"/myplugin)"
 #Load getoptions (github.com/ko1nksm/getoptions)
-source $ASSET/getoptions.sh
+# shellcheck source=.asset/lib/getoptions.sh
+source "$ASSET"/lib/getoptions.sh
+#Load functions
+for func in "$ASSET"/functions/*;do
+    # shellcheck source=/dev/null
+    source "$ASSET"/functions/"$func"
+done
+
 
 # shellcheck disable=SC1083
 mpdk_parser_definition() {
 	setup   OARGS help:usage abbr:true width:"35,18" no:'0' -- '' "Usage: mpdk [global options...] <command> [options...] [arguments...]"
 	msg -- 'Moodle Plugin Development Kit (wrapper for github.com/moodlehq/moodle-docker)'
 	msg -- '' 'Global Options:'
-	flag NON_INTERACTIVE -c --non-interactive init:@no -- "Do not ask for value to input, use only provided arguent"
+	flag NON_INTERACTIVE -c --non-interactive init:@no -- "Do not ask to input input, use only provided options"
 	param INSTANCE_NAME -n --name -- "Name of an existing instance to select (alternative to -i)"
 	param INSTANCE_ROOT -i --instance -- "Path to an existing instance to select (alternative to -n)" 
 	disp :usage -h --help -- "Display this screen"
 	disp :mpdk_extendedhelp -H --exthelp -- "Open documentaion (requires a connection)"
-	disp VERSION --version -- "Show installed version"
+	disp VERSION -v --version -- "Show installed version"
 
 	msg -- '' "Commands:"
 	cmd install -- "Install the enviroment and download dependencies (execute just one time)"
@@ -69,14 +89,14 @@ if [ -z "$IROOT" ]; then
         IROOT="$MPDK_ROOT/${INSTANCE_NAME}/moodle";
     elif [ -n "$INSTANCE_ROOT" ]; then
         IROOT="$INSTANCE_ROOT"
-    elif [ -f $(pwd)"/.mpdkinstance" ]; then
+    elif [ -f "$(pwd)/.mpdkinstance" ]; then
         IROOT=$(pwd)
-    elif [ -f $(pwd)"/moodle/.mpdkinstance" ]; then
-        IROOT=$(pwd)"/moodle"
+    elif [ -f "$(pwd)/moodle/.mpdkinstance" ]; then
+        IROOT="$(pwd)/moodle"
     else
         back="../"
         for (( i=1; i<=20; i++ ));do
-            p="$(realpath $(pwd)"/$back")"
+            p="$(realpath "$(pwd)/$back")"
             if [ -f "$p/.mpdkinstance" ];then
                 IROOT="$p";break
             fi
@@ -92,17 +112,23 @@ fi
 if  [ -n "$IROOT" ];then
     [ "${IROOT:${#IROOT}-1:1}" != '/' ] && IROOT+='/'
     mpdk_requireinstance
-    export MOODLE_DOCKER_WWWROOT=$IROOT
-    export MOODLE_DOCKER_DB=pgsql
-    export COMPOSE_PROJECT_NAME="$(basename "$(dirname $IROOT)")"
+    MOODLE_DOCKER_WWWROOT=$IROOT
+    MOODLE_DOCKER_DB=pgsql
+    COMPOSE_PROJECT_NAME="$(basename "$(dirname "$IROOT")")"
+    export MOODLE_DOCKER_WWWROOT
+    export MOODLE_DOCKER_DB
+    export COMPOSE_PROJECT_NAME
     #Eventually load the instance env file
-    [ -f "$MPDK_ROOT/env" ] && source $MPDK_ROOT/env
+    # shellcheck source=/dev/null
+    [ -f "$IROOT/../env" ] && source "$IROOT/../env"
 fi
 export MOODLE_DOCKER_PHP_VERSION=8.0
 #Eventually load the global env file
-[ -f "$MPDK_ROOT/env" ] && source $MPDK_ROOT/env
+# shellcheck source=/dev/null
+[ -f "$MPDK_ROOT/env" ] && source "$MPDK_ROOT/env"
 #Parse command
 
+# shellcheck disable=2068
 case $1 in
     new ) mpdk_new $@ & mpdk_spinner $!;exit;;
     download-moodle ) mpdk_download_moodle $@;exit;;
@@ -114,7 +140,7 @@ case $1 in
     stop ) mpdk_downstopremove -s $@;exit;;
     down ) mpdk_downstopremove $@;exit;;
     remove ) mpdk_downstopremove -r $@;exit;;
-    ps ) mpdk_ps $@;exit;exit;;
+    ps ) mpdk_ps $@;exit;;
     init ) mpdk_init $@;exit;;
     run ) mpdk_run $@;;
     test ) mpdk_test $@;;

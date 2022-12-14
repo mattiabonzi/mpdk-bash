@@ -1,45 +1,65 @@
+# Copyright (C) 2022 Mattia Bonzi <mattia@mattiabonzi.it>
+# 
+# This file is part of Mpdk.
+# 
+# Mpdk is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# Mpdk is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Mpdk.  If not, see <http://www.gnu.org/licenses/>.
+
+
+mpdk_parser_definition_download_moodle() {
+	setup   OARGS help:usage abbr:true -- '' "Usage: mpdk download_moodle [Options...]"
+	msg -- 'Download moodle core (use "mpdk new")'
+	msg -- '' 'Options:'
+	param VERSION  -v --version -- "Moodle version (x.x.x or x.x for latest stable)"
+    flag CACHE -c --no-cache -- "Disable local cache"
+    flag returnurl -u --returl-url -- "Return url instead of download (for testing)"
+	disp :usage  -h --help -- "Display this screen" 
+}
+
 mpdk_download_moodle() {
     #Parse local options
-    version=latest;cache=1;link='';returnurl=0;
-    local OPTIND
-    while getopts "ucv:" options; do
-        case "${options}" in
-            u ) returnurl=1;;
-            c ) cache=0;;
-            v ) version=${OPTARG};;
-        esac
-    done
+    eval "$(getoptions mpdk_parser_definition_download_moodle parse "$0")"
+    parse "$@"
     
     if [ "$version" = "latest" ];then
         link="$( wget -q  -O - https://download.moodle.org/releases/latest/ | grep -o "https://download\.moodle\.org/download\.php/stable\d\+/moodle-latest-\d\+\.zip" | head -1 | sed 's+stable+direct/stable+g')"
     else
         if [[ "${version:0:1}" = 4 ]];then
-            branch=$(echo $version | cut -d '.' -f1,2 | tr '.' 0)
+            branch=$(echo "$version" | cut -d '.' -f1,2 | tr '.' 0)
         else
-            branch=$(echo $version | cut -d '.' -f1,2 | tr -d '.')
+            branch=$(echo "$version" | cut -d '.' -f1,2 | tr -d '.')
         fi 
         echo $version
         if [[ $version =~ [0-9]+\.[0-9]+\.[0-9]+ ]];then
-        echo "heey" $version
+        echo "heey" "$version"
             if [ "${version:4}" = 0 ];then 
                 version="${version:0:3}"
             fi
             link="https://download.moodle.org/download.php/direct/stable${branch}/moodle-$version.zip"
         elif [[ $version =~ [0-9]+\.[0-9]+ ]];then
-            echo "oooo"$version"ooo"
             link="https://download.moodle.org/download.php/direct/stable${branch}/moodle-latest-${version//\.}.zip"
         else
             echo "Use syntax 'x.x' or 'x.x.x' to specify the version"
         fi
     fi
-    if [ $returnurl -eq 1 ];then
-        echo $link
-        exit
-    fi
-    if [ $cache -eq 1 ];then
-        mpdk_call_wget $link
+    msg="Unable to build a valid url, use syntax 'x.x' or 'x.x.x' to specify the version"
+    [ -z "$link" ] && echo "$msg" && exit
+    [ -n "$returnurl" ] && echo "$link" && exit
+
+    if [ -n "$cache" ];then
+        mpdk_call_wget "$link"
     else
-        wget --quite $link
+        wget --quite "$link"
     fi
 }
 
@@ -58,7 +78,7 @@ mpdk_call_wget() {
         cp -r "$ASSET"/cache/"$hash"/"$filename" ./"$filename"
     else
         #Download the file using wget and the original argument
-        wget --quiet $@
+        wget --quiet "$@"
         #Create the entry inside the cache dir
         mkdir "$ASSET"/cache/"$hash"/
         #Copy the archive in the cache

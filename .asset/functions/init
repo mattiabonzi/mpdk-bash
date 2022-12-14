@@ -1,7 +1,34 @@
+# Copyright (C) 2022 Mattia Bonzi <mattia@mattiabonzi.it>
+# 
+# This file is part of Mpdk.
+# 
+# Mpdk is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# Mpdk is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Mpdk.  If not, see <http://www.gnu.org/licenses/>.
 
 
-mpdk_initdev() {
-    if [ $1 -eq 0 ] && [ $2 -eq 1 ]; then
+mpdk_parser_definition_init() {
+	setup   OARGS help:usage abbr:true -- '' "Usage: mpdk init [Options...]"
+	msg -- 'Init the instance (use mpdk run)'
+	msg -- '' 'Options:'
+	flag DEV  -d --dev -- "Init as development instance"
+    flag PHPUNIT -t --phpunit -- "Init as PhoUnjit testng instance"
+    flag BEHAT -b --behat -- "Init as Behat testng instance"
+	disp :usage  -h --help -- "Display this screen" 
+}
+
+
+mpdk_init_dev() {
+    if [ "$1" -eq 0 ] && [ "$2" -eq 1 ]; then
         mpdk_sh nvm install && npm install
         mpdk_sh php admin/cli/install_database.php --agree-license --fullname="$3" --shortname="$3" --summary="$3" --adminpass="admin" --adminemail="admin@example.com"
         #Install and enable xdebug
@@ -15,13 +42,13 @@ mpdk_initdev() {
     fi
 }
 
-mpdk_initphpunit() {
+mpdk_init_phpunit() {
     if [[ $1 -eq 0 ]] && [[ $2 -eq 1 ]]; then
         mpdk_sh php admin/tool/phpunit/cli/init.php
     fi
 }
 
-mpdk_initbehat() {
+mpdk_init_behat() {
     if [[ $1 -eq 0 ]] && [[ $2 -eq 1 ]]; then
         mpdk_sh php admin/tool/behat/cli/init.php
     fi
@@ -30,33 +57,26 @@ mpdk_initbehat() {
 
 mpdk_init() {
     #Parse local options
-    phpunit=0;behat=0;dev=0
-    local OPTIND
-    while getopts "tbd" options; do
-        case "${options}" in
-            t ) phpunit=1;;
-            b ) behat=1;;
-            d ) dev=1;;
-        esac
-    done
-    [ $phpunit -eq 0 ] && [ $behat -eq 0 ] && dev=1
+    eval "$(getoptions mpdk_parser_definition_download_moodle parse "$0")"
+    parse "$@"
+    [ "$PHPUNIT" -eq 0 ] && [ "$BEHAT" -eq 0 ] && DEV=1
     #Check if already initialized 
     readydev=0;readyphpunit=0;readybehat=0
     if [ -f "$IROOT/.init" ];then
-        set $(cat $IROOT/.init)
+        set" $(cat "$IROOT"/.init)"
         readydev="$1"
         readyphpunit="$2"
         readybehat="$3"
     fi
     #Replace "_" with " " from the instance name to use as Moodle title
-    moodle_desc="$(basename $(dirname $IROOT)  | sed 's/_/ /g')"
+    moodle_desc="$(basename "$(dirname "$IROOT")"  | sed 's/_/ /g')"
     #Install moodle if necessary
-    mpdk_initdev $readydev $dev $moodle_desc & 
-    mpdk_initphpunit $readyphpunit $phpunit &
-    mpdk_initbehat $readybehat $behat &
+    mpdk_init_dev "$readydev" "$DEV" "$moodle_desc" & 
+    mpdk_init_phpunit "$readyphpunit" "$PHPUNIT" &
+    mpdk_init_behat "$readybehat" "$BEHAT" &
     wait
-    [[ $readydev -eq 1 ]] &&  dev=1
-    [[ $readyphpunit -eq 1 ]] &&  phpunit=1
-    [[ $readybehat -eq 1 ]] &&  behat=1
-    printf "$dev $phpunit $behat" > $IROOT/.init
+    [[ $readydev -eq 1 ]] &&  DEV=1
+    [[ $readyphpunit -eq 1 ]] &&  PHPUNIT=1
+    [[ $readybehat -eq 1 ]] &&  BEHAT=1
+    printf "%s %s %s" "$DEV" "$PHPUNIT" "$BEHAT" > "$IROOT/.init"
 }

@@ -1,3 +1,31 @@
+# Copyright (C) 2022 Mattia Bonzi <mattia@mattiabonzi.it>
+# 
+# This file is part of Mpdk.
+# 
+# Mpdk is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# Mpdk is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Mpdk.  If not, see <http://www.gnu.org/licenses/>.
+
+mpdk_parser_definition_stop() {
+	setup   OARGS help:usage abbr:true -- '' "Usage: addplugin <name> <path>"
+	msg -- 'Stop the instance (docker-compose stop)'
+	msg -- '' 'Options:'
+    flag ALL -a --all -- "Stop all running instance"
+	disp :usage  -h --help -- "Display this screen" 
+    msg -- '' 'Arguments:'
+    msg label:'<names>' -- "Shortname  of the plugin (E.g. tool_myplugin)"
+    msg label:'<path>' -- "Relative installation path of the plugin (E.g. admin/tool)"
+}
+
 mpdk_addplugin() {
     name=$1
     path=$2
@@ -5,6 +33,6 @@ mpdk_addplugin() {
         printf "\nExepcting 2 argument: <component name> <relative path>"
         exit
     fi
-    printf "$name $path\n" >> "$ASSET"/myplugin
-    printf "\nPlugin '$name', relative path '$path' has been added to the list\n"
+    printf "%s %s\n" "$name" "$path" >> "$ASSET"/myplugin
+    printf "\nPlugin '%s', relative path '%s' has been added to the list\n" "$name" "$path"
 }

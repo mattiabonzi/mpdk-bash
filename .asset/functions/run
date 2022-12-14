@@ -1,41 +1,54 @@
+# Copyright (C) 2022 Mattia Bonzi <mattia@mattiabonzi.it>
+# 
+# This file is part of Mpdk.
+# 
+# Mpdk is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# Mpdk is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Mpdk.  If not, see <http://www.gnu.org/licenses/>.
 
-mpdk_parser_definition_ps() {
-	setup   OARGS help:usage abbr:true -- '' "Usage: mpdk ps [-asn]"
-	msg -- 'Show the list of running docker container for the instance'
-	msg -- '' 'Options:'
-	flag DEV  -d --dev -- "Show info for all running instance (not only the selcted one)"
-    flag PHPUNIT -t --phpunit -- "Show info for all running instance (not only the selcted one)"
-    flag BEHAT -b --behat -- "Show info for all running instance (not only the selcted one)"
-    param WEBPORT -p --webport -- "Show info for stopped instance (only useful with -a)"
-    param DBPORT -P --dbport -- "Show info for non initialized instance (only useful with -a)"
+
+
+mpdk_parser_definition_run() {
+	setup   OARGS help:usage abbr:true -- '' "Usage: mpdk ps [Options...]"
+	msg -- 'Run (and init if necessary) the instance'
+    msg -- "Once an instance has been initialized, it's no more necessary to use '-tbd'"
+	flag DEV  -d --dev -- "Init (if necessary) as development instance (default, only useful in combination with -t or -b)"
+    flag PHPUNIT -t --phpunit -- "Init (if necessary) as PhpUnit test instance"
+    flag BEHAT -b --behat -- "Init (if necessary) as Behat test instance"
+    param WEBPORT -p --webport -- "  Specify the web port"
+    param DBPORT -P --dbport -- "Specify the db port"
 	disp :usage  -h --help -- "Display this screen"
+
 }
 
 #Start an instance (docker-compose up)
 mpdk_run() {
     #Parse local options
-    local OPTIND
-    while getopts "p:P:tbd" options; do
-        case "${options}" in
-            p ) WEBPORT=${OPTARG};shift 2;;
-            P ) DBPORT=${OPTARG};shift 2;;
-            d ) dev=1;;
-        esac
-    done
+    eval "$(getoptions mpdk_parser_definition_run parse "$0")"
+    parse "$@"
+    # shellcheck source=/dev/null  
+    [ -f "$IROOT/env" ] && source "$MPDK_ROOT/env"
     #Sanity check
     [ -z "$IROOT" ] && printf "\nA path to the instance is reuiqred" && exit 1
     portmessage="port is not free, choose another one or stop the service using this port: "
-    [ -n "$(lsof -i tcp:$WEBPORT -s tcp:listen)" ] && printf "\nWeb $portmessage $WEBPORT" && exit
-    [ -n "$(lsof -i tcp:$DBPORT -s tcp:listen)" ] && printf "\nDatabase $portmessage $DBPORT" && exit
+    [ -n "$(lsof -i tcp:"$WEBPORT" -s tcp:listen)" ] && printf "\nWeb $portmessage %s" "$WEBPORT" && exit
+    [ -n "$(lsof -i tcp:"$DBPORT" -s tcp:listen)" ] && printf "\nDatabase $portmessage %s" "$DBPORT" && exit
     #Export web/db port ENV for moodle-docker
     export MOODLE_DOCKER_WEB_PORT=$WEBPORT
     export MOODLE_DOCKER_DB_PORT=$DBPORT
-    #Replace "_" with " " from the instance name to use as Moodle title
-    moodle_desc="$(basename "$IROOT" | sed "s/_/ /g")"
     #Use the config.php file bundled with moodle-docker
     cp "$ASSET"/moodle-docker/config.docker-template.php "$MOODLE_DOCKER_WWWROOT"/config.php
     #Compose up
-    "$ASSET"/moodle-docker/bin/moodle-docker-compose up -d 1> $IROOT/../compose-up.log
+    "$ASSET"/moodle-docker/bin/moodle-docker-compose up -d 1> "$IROOT/../compose-up.log"
     mpdk_spinner $!
     #Wait for DB (maybe useless for pgsql, here for safety)
     "$ASSET"/moodle-docker/bin/moodle-docker-wait-for-db 1> /dev/null
@@ -48,10 +61,10 @@ mpdk_run() {
     #Show "docker ps" to the user
     "$ASSET"/moodle-docker/bin/moodle-docker-compose ps
     #Mark as initialized
-    printf "\nPiattaforma online http://localhost:$MOODLE_DOCKER_WEB_PORT"
+    printf "\nPiattaforma online http://localhost:%s" ""
     printf "\nUser: admin   |    Passowrd: admin\n"    
     #Open the browser only if it's a devinstance
-    if [ $dev -eq 1 ]; then
+    if [ "$DEV" -eq 1 ]; then
         sleep 3
         open  http://localhost:"$MOODLE_DOCKER_WEB_PORT"
     fi
