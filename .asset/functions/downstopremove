@@ -47,7 +47,7 @@ mpdk_stop() {
     eval "$(getoptions mpdk_parser_definition_stop parse "$0")"
     parse "$@"
     [ -n "$FORCE" ] && FORCE="-f"
-    mpdk_downstopremove -s "$FORCE"
+    mpdk_downstopremove -s "$FORCE" "$ALL"
 }
 
 mpdk_down() {
@@ -56,7 +56,7 @@ mpdk_down() {
     parse "$@"
     [ -n "$FORCE" ] && FORCE="-f"
     [ -n "$ALL" ] && ALL="-a"
-    mpdk_downstopremove -d "$FORCE"
+    mpdk_downstopremove -d "$FORCE" "$ALL"
 }
 
 mpdk_remove() {
@@ -80,7 +80,7 @@ mpdk_downstopremove() {
             r ) remove=1;force=0;;
             s ) stop=1;force=1;;
             f ) force=1;;
-            * ) echo "Something went wrong" && exit
+            * ) echo "Something went wrong" && exit 1
         esac
     done
     #If not "-f" (force) ask confirmation to the user

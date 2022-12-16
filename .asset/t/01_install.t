@@ -32,27 +32,32 @@ asset=$root/.asset
 PLAN $(grep -c "^\s*RUNS\|^\s*OK\|^\s*NOK\|^\s*GREP\|^\s*NGREP\|^\s*NEGREP\|^\s*NOGREP\|^\s*EGREP\|^\s*OGREP\|^\s*IS\|^\s*ISNT\|^\s*NRUNS\|^\s*DIFF\|^\s*TODO" $0)
 
 ######### BEGIN #########
-$mpdk install
+RUNS $mpdk install --copyright "Jonh smith <Jonhsmith@myorg.com>" --editor '/Applications/PhpStorm' --global no
+#Check output
+GREP "Installation completed, run 'mpdk -h' for a list of avaible commands"
+NGREP "Non interactive mode"
 #Check file and dir
-OK -f "$asset/moodle-docker/local.yml" #1
-OK -f "$asset/moodle-docker/base.yml" #2
-OK -f "$asset/moodle-docker/dockerfile" #3
+OK -f "$asset/moodle-docker/local.yml"
+OK -f "$asset/moodle-docker/base.yml"
+OK -f "$asset/moodle-docker/dockerfile"
 
-OK -f "$asset/config" #4
-OK -f "$asset/myplugins" #5
-OK -d "$asset/cache" #6
+OK -f "$asset/config"
+OK -f "$asset/myplugins"
+OK -d "$asset/cache"
 #Check file contents
 #Config
-RUNS cat $asset/config #7
-GREP "export MPDK_EDIOTR=\"/Applications/PhpStorm" #8
-GREP "export COPYRIGHT_STRING=\"Jonh smith <Jonhsmith@myorg" #9
+RUNS cat $asset/config
+GREP "export MPDK_EDIOTR=\"/Applications/PhpStorm"
+GREP "export COPYRIGHT_STRING=\"Jonh smith <Jonhsmith@myorg.com>"
 echo $0
 ######### END #########
 
 
 #RESET
-$(cat $root/reset)
-rm -f $root/reset
+if [ -n "$MPDK_TEST_RESET_EACH" ];then
+    $(cat $root/reset)
+    rm -f $root/reset
+fi
 
 
 

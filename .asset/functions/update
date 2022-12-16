@@ -19,14 +19,14 @@
 mpdk_update() {
     #Ask confirmation to the users
     #Is required to answer exactly "YES" (in capital letter)
-    q="Are sure you want to update mpdk? (YES/n)"
+    q="Are sure you want to update mpdk? (Do not continue if you have modified or added something to mpdk core) (YES/n)"
     mpdk_confirmation "$q" "Aborting..." "Please answer YES (in capital letter) or no.\n" "YES"
     echo "Current version: $MPDK_VERSION"
     latest="$(wget -q -O - "https://raw.githubusercontent.com/mattiabonzi/mpdk/main/mpdk" | grep  "MPDK_VERSION" | cut -d '"' -f2)"
     echo "Latest version: $latest"
     if [[ "$MPDK_VERSION" = "$latest" ]];then
         echo "Latest version already installed"
-        exit
+        exit 1
     fi
     rm --rf rm -rf ./.asset/moodle-docker
     git fetch --all 

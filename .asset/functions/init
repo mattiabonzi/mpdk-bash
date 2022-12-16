@@ -27,6 +27,32 @@ mpdk_parser_definition_init() {
 }
 
 
+mpdk_init() {
+    #Parse local options
+    eval "$(getoptions mpdk_parser_definition_init parse "$0")"
+    parse "$@"
+    [ "$PHPUNIT" -eq 0 ] && [ "$BEHAT" -eq 0 ] && DEV=1
+    #Check if already initialized 
+    readydev=0;readyphpunit=0;readybehat=0
+    if [ -f "$IROOT/.init" ];then
+        set" $(cat "$IROOT"/.init)"
+        readydev="$1"
+        readyphpunit="$2"
+        readybehat="$3"
+    fi
+    #Replace "_" with " " from the instance name to use as Moodle title
+    moodle_desc="$(basename "$(dirname "$IROOT")"  | sed 's/_/ /g')"
+    #Install moodle if necessary
+    mpdk_init_dev "$readydev" "$DEV" "$moodle_desc" & 
+    mpdk_init_phpunit "$readyphpunit" "$PHPUNIT" &
+    mpdk_init_behat "$readybehat" "$BEHAT" &
+    wait
+    [[ $readydev -eq 1 ]] &&  DEV=1
+    [[ $readyphpunit -eq 1 ]] &&  PHPUNIT=1
+    [[ $readybehat -eq 1 ]] &&  BEHAT=1
+    printf "%s %s %s" "$DEV" "$PHPUNIT" "$BEHAT" > "$IROOT/.init"
+}
+
 mpdk_init_dev() {
     if [ "$1" -eq 0 ] && [ "$2" -eq 1 ]; then
         mpdk_sh nvm install && npm install
@@ -52,31 +78,4 @@ mpdk_init_behat() {
     if [[ $1 -eq 0 ]] && [[ $2 -eq 1 ]]; then
         mpdk_sh php admin/tool/behat/cli/init.php
     fi
-}
-
-
-mpdk_init() {
-    #Parse local options
-    eval "$(getoptions mpdk_parser_definition_download_moodle parse "$0")"
-    parse "$@"
-    [ "$PHPUNIT" -eq 0 ] && [ "$BEHAT" -eq 0 ] && DEV=1
-    #Check if already initialized 
-    readydev=0;readyphpunit=0;readybehat=0
-    if [ -f "$IROOT/.init" ];then
-        set" $(cat "$IROOT"/.init)"
-        readydev="$1"
-        readyphpunit="$2"
-        readybehat="$3"
-    fi
-    #Replace "_" with " " from the instance name to use as Moodle title
-    moodle_desc="$(basename "$(dirname "$IROOT")"  | sed 's/_/ /g')"
-    #Install moodle if necessary
-    mpdk_init_dev "$readydev" "$DEV" "$moodle_desc" & 
-    mpdk_init_phpunit "$readyphpunit" "$PHPUNIT" &
-    mpdk_init_behat "$readybehat" "$BEHAT" &
-    wait
-    [[ $readydev -eq 1 ]] &&  DEV=1
-    [[ $readyphpunit -eq 1 ]] &&  PHPUNIT=1
-    [[ $readybehat -eq 1 ]] &&  BEHAT=1
-    printf "%s %s %s" "$DEV" "$PHPUNIT" "$BEHAT" > "$IROOT/.init"
 }

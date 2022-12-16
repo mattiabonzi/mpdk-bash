@@ -21,7 +21,7 @@ mpdk_parser_definition_download_moodle() {
 	msg -- 'Download moodle core (use "mpdk new")'
 	msg -- '' 'Options:'
 	param VERSION  -v --version -- "Moodle version (x.x.x or x.x for latest stable)"
-    flag CACHE -c --no-cache -- "Disable local cache"
+    flag NOCACHE -c --no-cache -- "Disable local cache"
     flag returnurl -u --returl-url -- "Return url instead of download (for testing)"
 	disp :usage  -h --help -- "Display this screen" 
 }
@@ -31,41 +31,38 @@ mpdk_download_moodle() {
     eval "$(getoptions mpdk_parser_definition_download_moodle parse "$0")"
     parse "$@"
     
-    if [ "$version" = "latest" ];then
+    if [ -z "$VERSION" ];then
         link="$( wget -q  -O - https://download.moodle.org/releases/latest/ | grep -o "https://download\.moodle\.org/download\.php/stable\d\+/moodle-latest-\d\+\.zip" | head -1 | sed 's+stable+direct/stable+g')"
     else
-        if [[ "${version:0:1}" = 4 ]];then
-            branch=$(echo "$version" | cut -d '.' -f1,2 | tr '.' 0)
+        if [[ "${VERSION:0:1}" = 4 ]];then
+            branch=$(echo "$VERSION" | cut -d '.' -f1,2 | tr '.' 0)
         else
-            branch=$(echo "$version" | cut -d '.' -f1,2 | tr -d '.')
+            branch=$(echo "$VERSION" | cut -d '.' -f1,2 | tr -d '.')
         fi 
-        echo $version
-        if [[ $version =~ [0-9]+\.[0-9]+\.[0-9]+ ]];then
-        echo "heey" "$version"
-            if [ "${version:4}" = 0 ];then 
-                version="${version:0:3}"
+        if [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]];then
+            if [ "${VERSION:4}" = 0 ];then 
+                VERSION="${VERSION:0:3}"
             fi
-            link="https://download.moodle.org/download.php/direct/stable${branch}/moodle-$version.zip"
-        elif [[ $version =~ [0-9]+\.[0-9]+ ]];then
-            link="https://download.moodle.org/download.php/direct/stable${branch}/moodle-latest-${version//\.}.zip"
+            link="https://download.moodle.org/download.php/direct/stable${branch}/moodle-$VERSION.zip"
+        elif [[ $VERSION =~ ^[0-9]+\.[0-9]+$ ]];then
+            link="https://download.moodle.org/download.php/direct/stable${branch}/moodle-latest-${branch}.zip"
         else
-            echo "Use syntax 'x.x' or 'x.x.x' to specify the version"
+            echo "Use syntax 'x.x' or 'x.x.x' to specify the version" && exit 1
         fi
     fi
     msg="Unable to build a valid url, use syntax 'x.x' or 'x.x.x' to specify the version"
-    [ -z "$link" ] && echo "$msg" && exit
-    [ -n "$returnurl" ] && echo "$link" && exit
+    [ -z "$link" ] && echo "$msg" && exit 1
+    [ -n "$returnurl" ] && echo "$link" && exit 0
 
-    if [ -n "$cache" ];then
-        mpdk_call_wget "$link"
+    if [ -n "$NOCACHE" ];then
+        wget --quiet "$link"
     else
-        wget --quite "$link"
+        mpdk_call_wget "$link"
     fi
 }
 
 #Check the cache, if the reqeust version is already present, serve from cache otherwise download with wget
 mpdk_call_wget() {
-    
     #Get the url from the argument passed to wget
     url="$(echo "$@" | sed 's/.*\(https.*tgz\).*/\1/')"
     #Get the filename from the url

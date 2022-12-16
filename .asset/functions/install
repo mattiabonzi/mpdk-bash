@@ -32,18 +32,19 @@ mpdk_parser_definition_install() {
 mpdk_install() {
     eval "$(getoptions mpdk_parser_definition_install parse "$0")"
     parse "$@"
+    [ -f "$ASSET"/config ] && echo "Already installed!" && exit 1
     #Create dir
     mkdir "$ASSET"/cache "$ASSET"/recipe
-    touch "$ASSET"/myplugins "$ASSET"/myplugins
+    touch "$ASSET"/myplugins "$ASSET"/config
     #Download dependencies
     git clone --quiet --depth 1 https://github.com/moodlehq/moodle-docker.git "$ASSET"/moodle-docker/
     #Customzie Moodle-docker
     cp "$ASSET"/local.yml "$ASSET"/moodle-docker/local.yml
     cp "$ASSET"/dockerfile "$ASSET"/moodle-docker/dockerfile
     if [ "$NON_INTERACTIVE" -eq 1 ];then 
-            [ -z "$INSTALL_ON_PATH" ]  && echo "Non interactuive mode: choose if install mpdk globaly" && exit
-            [ -z "$COPYRIGHT_STRING" ] && echo "Non interactuive mode: provide a copyright string" && exit
-            [ -z "$MPDK_EDIOTR" ] && echo "Non interactuive mode: provide a path to an editor" && exit   
+            [ -z "$INSTALL_ON_PATH" ]  && echo "Non interactive mode: choose if install mpdk globaly" && exit 1
+            [ -z "$COPYRIGHT_STRING" ] && echo "Non interactive mode: provide a copyright string" && exit 1
+            [ -z "$MPDK_EDIOTR" ] && echo "Non interactive mode: provide a path to an editor" && exit 1  
     fi
     mpdk_install_setcopyright
     mpdk_install_seteditor
@@ -60,13 +61,13 @@ mpdk_install_seteditor() {
             printf "\nexport MPDK_EDIOTR=\"%s\"" "$input" >> "$ASSET"/config
         fi
     else 
-        printf "\nexport MPDK_EDIOTR=\"%s\"" "$input" >> "$ASSET"/config
+        printf "\nexport MPDK_EDIOTR=\"%s\"" "$MPDK_EDIOTR" >> "$ASSET"/config
     fi
 }
 
 
 mpdk_install_setcopyright() {
-if [ -z "$COPYRIGHT_STRING" ];then
+    if [ -z "$COPYRIGHT_STRING" ];then
         while true; do
             read -r -p "Copyright string, will be used for newly created plugins (Eg. Jonh Smith <jonhsmith@myorg.com>) : " input
             if [ -n "${input}" ]; then
@@ -75,7 +76,7 @@ if [ -z "$COPYRIGHT_STRING" ];then
             fi    
         done
     else
-        printf "\nexport COPYRIGHT_STRING=\"%s\"" "$input" >> "$ASSET"/config
+        printf "\nexport COPYRIGHT_STRING=\"%s\"" "$COPYRIGHT_STRING" >> "$ASSET"/config
     fi
 }
 

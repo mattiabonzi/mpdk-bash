@@ -15,8 +15,14 @@
 # You should have received a copy of the GNU General Public License
 # along with Mpdk.  If not, see <http://www.gnu.org/licenses/>.
 
+mpdk_parser_definition_myplugin() {
+	setup   OARGS help:usage abbr:true -- '' "Usage: mpdk myplugin"
+	msg -- 'Show a list af created plugin and their version in the various instances'
+}
+
 
 mpdk_myplugin() {
+    eval "$(getoptions mpdk_parser_definition_myplugin parse "$0")"
     ilist="$(ls "$MPDK_ROOT")"
     while read -r line; do
         set "$line"

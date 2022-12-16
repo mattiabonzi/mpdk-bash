@@ -21,15 +21,8 @@ source .asset/t/osht.sh
 #TEST: run
 #Run and init a new instance, or run an already initialized instance
 
-####
-echo 'rm -rf ./mpdktest4 && docker ps -aq -f "name=mpdktest*" | xargs docker stop | xargs docker rm' >> reset
-printf "\n\n###### INSTRUCTION #######\n"
-echo "This test might take a long itme to run!"
-echo "To reset run: chmod +x ./reset && ./reset && rm -f ./reset"
-printf "##########################\n\n"
-printf " \n"
-sleep 2
-####
+#RESET
+echo 'rm -rf ./mpdktest* && docker ps -aq -f "name=mpdktest*" | xargs docker stop | xargs docker rm' >> reset
 
 #VAR
 root=$(PWD)
@@ -37,6 +30,12 @@ mpdk=$root/mpdk
 asset=$root/.asset
 PLAN $(grep -c "^\s*RUNS\|^\s*OK\|^\s*NOK\|^\s*GREP\|^\s*NGREP\|^\s*NEGREP\|^\s*NOGREP\|^\s*EGREP\|^\s*OGREP\|^\s*IS\|^\s*ISNT\|^\s*NRUNS\|^\s*DIFF\|^\s*TODO" $0)
 
+if [ -n "$MPDK_TEST_RESET_EACH" ];then
+    $mpdk install --copyright "Jonh smith <Jonhsmith@myorg,com>" --editor "/Applications/PhpStorm" --global no
+    $mpdk new mpdktest1
+    $mpdk new mpdktest2
+    $mpdk new mpdktest3
+fi
 
 ######### BEGIN #########
 #Dev instance
@@ -126,3 +125,9 @@ RUNS $mpdk sh ls ../phpunitdata
 GREP .
 cd ..
 ######### END #########
+
+#RESET
+if [ -n "$MPDK_TEST_RESET_EACH" ];then
+    $(cat $root/reset)
+    rm -f $root/reset
+fi

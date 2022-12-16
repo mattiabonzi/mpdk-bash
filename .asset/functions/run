@@ -49,7 +49,7 @@ mpdk_run() {
     cp "$ASSET"/moodle-docker/config.docker-template.php "$MOODLE_DOCKER_WWWROOT"/config.php
     #Compose up
     "$ASSET"/moodle-docker/bin/moodle-docker-compose up -d 1> "$IROOT/../compose-up.log"
-    mpdk_spinner $!
+    mpdk_spinner $! 
     #Wait for DB (maybe useless for pgsql, here for safety)
     "$ASSET"/moodle-docker/bin/moodle-docker-wait-for-db 1> /dev/null
     mpdk_spinner $!

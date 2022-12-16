@@ -44,9 +44,15 @@ source "$ASSET"/lib/getoptions.sh
 #Load functions
 for func in "$ASSET"/functions/*;do
     # shellcheck source=/dev/null
-    source "$ASSET"/functions/"$func"
+    source "$func"
 done
-
+#Load user defined functions
+if [ -d "$ASSET"/userfunctions/ ];then
+    for func in "$ASSET"/userfunctions/*;do
+        # shellcheck source=/dev/null
+        source "$func"
+    done
+fi
 
 # shellcheck disable=SC1083
 mpdk_parser_definition() {
@@ -76,6 +82,7 @@ mpdk_parser_definition() {
 	cmd newplugin -- "Interactivly create a new plugin structure with tool_pluginskel\nRefers to tool_pluginskel documentation for help with the recipe"
 	cmd addplugin -- "Add a plugin to the registered plugins list (for code checking and version management)"
 	cmd myplugin -- "Show a list of registered plugin and their installed versions on every instance"
+    cmd download-moodle -- "Download specified (or latest) Moodle core version"
     msg -- '' 'Run "mpdk <command> help" for help on specif command' ''
 }
 
@@ -128,23 +135,22 @@ export MOODLE_DOCKER_PHP_VERSION=8.0
 [ -f "$MPDK_ROOT/env" ] && source "$MPDK_ROOT/env"
 #Parse command
 
-# shellcheck disable=2068
 case $1 in
-    new ) mpdk_new $@ & mpdk_spinner $!;exit;;
-    download-moodle ) mpdk_download_moodle $@;exit;;
-    install ) mpdk_install $@;exit;;
-    drop ) mpdk_drop $@;exit;;
-    newplugin ) mpdk_newplugin $@;exit;;
-    myplugin ) mpdk_myplugin $@;exit;;
-    addplugin ) mpdk_addplugin $@;exit;;
-    stop ) mpdk_downstopremove -s $@;exit;;
-    down ) mpdk_downstopremove $@;exit;;
-    remove ) mpdk_downstopremove -r $@;exit;;
-    ps ) mpdk_ps $@;exit;;
-    init ) mpdk_init $@;exit;;
-    run ) mpdk_run $@;;
-    test ) mpdk_test $@;;
-    sh ) mpdk_sh $@;;
-    sniff ) mpdk_sniff $@;;
-    * ) mpdk_usage;;
+    new ) mpdk_new "$@" & mpdk_spinner $!;exit 0;;
+    download-moodle ) mpdk_download_moodle "$@";exit 0;;
+    install ) mpdk_install "$@";exit 0;;
+    drop ) mpdk_drop "$@";exit 0;;
+    newplugin ) mpdk_newplugin "$@";exit 0;;
+    myplugin ) mpdk_myplugin "$@";exit 0;;
+    addplugin ) mpdk_addplugin "$@";exit 0;;
+    stop ) mpdk_stop "$@";exit 0;;
+    down ) mpdk_down "$@";exit 0;;
+    remove ) mpdk_remove -r "$@";exit 0;;
+    ps ) mpdk_ps "$@";exit 0;;
+    init ) mpdk_init "$@";exit 0;;
+    run ) mpdk_run "$@";exit 0;;
+    test ) mpdk_test "$@";exit 0;;
+    sh ) mpdk_sh "$@";exit 0;;
+    sniff ) mpdk_sniff "$@";exit 0;;
+    * ) mpdk_usage;exit 0;;
 esac

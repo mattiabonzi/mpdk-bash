@@ -262,13 +262,25 @@ The instance isn't automatically initialized.
 Every contribution is welcome!.<br>
 If you encounter a bug or feel the need to add a new features open a new [issue](https://github.com/mattiabonzi/mpdk/issues).
 
+### Testing
+To test the script you can use [Perl prove](https://perldoc.perl.org/prove) command to run the defined test.
+To do so, cd into the mpdk root (this step is crucial), and run 
+
+```prove .asset/t/```
+
+All the test are write so that they can be execute all, one after another, or as a single test case (use `prove .asset/t/{testfile}`).
+To run a test individually, set the ENV var `MPDK_TEST_RESET_EACH=true` so that every test will start from scartch and clean up everything after the execution.
+
+When the test are runned all, the cleaning process isn't run automatically, use:
+
+ ```chmod +x ./reset && ./reset && rm -f ./reset```
+ 
+ after the execution to manually clean up everything.
 
 
-## Roadmap
+## Roadmap
 
 * Add a "moodle-version/plugin-version/test passed|fail" tracking utility
-* Add test file for testing the script with tap
-* Split the code in more file for easy maintenance and contrib
 * Imporve the documentation
 * Add git related command for ensure good git practice (https://docs.moodle.org/dev/Git_for_developers, https://docs.moodle.org/dev/Git_tips)
 * Add support for the releasing process of plugin (https://docs.moodle.org/dev/Plugin_validation, https://docs.moodle.org/dev/Plugin_contribution_checklist)

@@ -20,12 +20,14 @@
 https://www.toptal.com/developers/gitignore/api/phpunit,phpstorm+all,macos,windows,linux,eclipse,visualstudiocode,netbeans,python,node,grunt,sublimetext,phpcodesniffer,composer
 
 #Ignore all, then include again mpdk, .asset, README.md, LICENSE
+#start
 *
 !mpdk
 !.asset
 !.asset/**
 !README.md
 !LICENSE
+#end
 
 #Test lib
 .asset/t/osht.sh
@@ -36,6 +38,7 @@ https://www.toptal.com/developers/gitignore/api/phpunit,phpstorm+all,macos,windo
 .asset/cache/
 .asset/recipe/
 .asset/moodle-docker
+.asset/userfunctions
 
 #ENV file
 env

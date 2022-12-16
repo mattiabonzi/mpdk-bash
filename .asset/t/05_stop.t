@@ -18,17 +18,11 @@
 
 source .asset/t/osht.sh
 
-#TEST: new
-#Crete a new instance, download moodle
+#TEST: stop
+#Stop an instance or all instances
 
-####
-echo "" >> reset
-printf "\n\n###### INSTRUCTION #######\n"
-echo "To reset run: chmod +x ./reset && ./reset && rm -f ./reset"
-printf "##########################\n\n"
-printf " \n"
-sleep 2
-####
+#RESET
+echo "rm -rf ./mpdktest* && docker ps -aq -f "name=mpdktest*" | xargs docker stop | xargs docker rm" >> reset
 
 #VAR
 root=$(PWD)
@@ -36,6 +30,18 @@ mpdk=$root/mpdk
 asset=$root/.asset
 PLAN $(grep -c "^\s*RUNS\|^\s*OK\|^\s*NOK\|^\s*GREP\|^\s*NGREP\|^\s*NEGREP\|^\s*NOGREP\|^\s*EGREP\|^\s*OGREP\|^\s*IS\|^\s*ISNT\|^\s*NRUNS\|^\s*DIFF\|^\s*TODO" $0)
 
+
+if [ -n "$MPDK_TEST_RESET_EACH" ];then
+    $mpdk install --copyright "Jonh smith <Jonhsmith@myorg,com>" --editor "/Applications/PhpStorm" --global no
+    $mpdk new mpdktest1
+    $mpdk new mpdktest2
+    $mpdk new mpdktest3
+    $mpdk new mpdktest4
+    cd ./mpdktest1 && $mpdk run > /dev/null && cd ..
+    cd ./mpdktest2 && $mpdk run -p 8002 -P 8003 > /dev/null && cd ..
+    cd ./mpdktest3 && $mpdk run -p 8004 -P 8005 > /dev/null && cd ..
+    cd ./mpdktest4 && $mpdk run -p 8006 -P 8007 > /dev/null && cd ..
+fi
 
 ######### BEGIN #########
 cd ./mpdktest1
@@ -50,8 +56,17 @@ RUNS docker ps -f "name=mpdktest*"
 NGREP "webserver"
 ######### END #########
 
+
+
+
+#RESET
+if [ -n "$MPDK_TEST_RESET_EACH" ];then
+    $(cat $root/reset)
+    rm -f $root/reset
+else
 #Run agan the conainer to continue testing
-cd ./mpdktest1 && $mpdk run > /dev/null && cd ..
-cd ./mpdktest2 && $mpdk run -p 8002 -P 8003 > /dev/null && cd ..
-cd ./mpdktest3 && $mpdk run -p 8004 -P 8005 > /dev/null && cd ..
-cd ./mpdktest4 && $mpdk run -p 8006 -P 8007 > /dev/null && cd ..
+    cd ./mpdktest1 && $mpdk run > /dev/null && cd ..
+    cd ./mpdktest2 && $mpdk run -p 8002 -P 8003 > /dev/null && cd ..
+    cd ./mpdktest3 && $mpdk run -p 8004 -P 8005 > /dev/null && cd ..
+    cd ./mpdktest4 && $mpdk run -p 8006 -P 8007 > /dev/null && cd ..
+fi

@@ -30,7 +30,7 @@ mpdk_confirmation() {
         read -r -p "$question" yn
         case $yn in
             "$yesanswer" ) break;;
-            "$noanswer" ) echo "$answerno"; exit;;
+            "$noanswer" ) echo "$answerno"; exit 0;;
             * ) echo "$notaccepted";;
         esac
     done
@@ -80,14 +80,15 @@ mpdk_isinstance() {
 }
 
 mpdk_requireinstance() {
-    #If the .mpdkinstance file does not exist, exit 
+    #If the .mpdkinstance file does not exist, quit 
     if [ -z "$IROOT" ];then
         printf "\nAn instance must be defined to run this command!\n"
-    elif [ -n "$(mpdk_isinstance)" ];then
+        quit=true
+    elif [ -z "$(mpdk_isinstance)" ];then
         printf "\nThe speficied path is not an MPDK instance (%s)\n" "$IROOT"
+        quit=true
     fi
-    mpdk_usage "$1"
-    exit
+    [ -n "$quit" ] && mpdk_usage "$1" && exit 1
 }
 
 mpdk_isinit() {

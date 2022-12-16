@@ -15,10 +15,14 @@
 # You should have received a copy of the GNU General Public License
 # along with Mpdk.  If not, see <http://www.gnu.org/licenses/>.
 
-
+mpdk_parser_definition_sh() {
+	setup   OARGS help:usage abbr:true -- '' "Usage: mpdk myplugin"
+	msg -- 'Show a list af created plugin and their version in the various instances'
+}
 
 #Execute command inside the webserver container
 mpdk_sh() {
+    eval "$(getoptions mpdk_parser_definition_sh parse "$0")"
     # shellcheck disable=2124
     cmd="$@"
     docker exec "$COMPOSE_PROJECT_NAME-webserver-1" bash -l -c "$cmd"

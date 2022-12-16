@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Mpdk.  If not, see <http://www.gnu.org/licenses/>.
 
-mpdk_parser_definition_stop() {
+mpdk_parser_definition_addplugin() {
 	setup   OARGS help:usage abbr:true -- '' "Usage: addplugin <name> <path>"
 	msg -- 'Stop the instance (docker-compose stop)'
 	msg -- '' 'Options:'
@@ -27,11 +27,14 @@ mpdk_parser_definition_stop() {
 }
 
 mpdk_addplugin() {
+    eval "$(getoptions mpdk_parser_definition_addplugin parse "$0")"
+    parse "$@"
+    eval "set -- $OARGS";shift
     name=$1
     path=$2
     if [ -z "$path" ] || [ -z "$name" ]; then
         printf "\nExepcting 2 argument: <component name> <relative path>"
-        exit
+        exit 1
     fi
     printf "%s %s\n" "$name" "$path" >> "$ASSET"/myplugin
     printf "\nPlugin '%s', relative path '%s' has been added to the list\n" "$name" "$path"

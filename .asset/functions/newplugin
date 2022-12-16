@@ -17,7 +17,7 @@
 
 
 
-mpdk_parser_definition_new() {
+mpdk_parser_definition_newplugin() {
 	setup   OARGS help:usage abbr:true -- '' "Usage: mpdk new [Options...] <name>"
 	msg -- 'Interactivly create a new plugin using tool_pluginskel'
     msg -- 'See github.comn/mudrd8mz/moodle-tool_pluginskel for help with the recipe'
@@ -41,6 +41,8 @@ mpdk_parser_definition_new() {
 
 #Create a new plugin using tool_pluginskel
 mpdk_newplugin() {
+    eval "$(getoptions mpdk_parser_definition_newplugin parse "$0")"
+    parse "$@"
     #Sanity check
     #Check if the container is running
     mpdk_requirerunning
@@ -51,13 +53,13 @@ mpdk_newplugin() {
 
     if [ -n "$NON_INTERACTIVE" ];then
         echo "WARNING: the inout is not validated, be carefull!"
-        [ -z "$TYPE" ] && echo "Non interactuive mode: privide a plugin type" && exit 1
+        [ -z "$TYPE" ] && echo "Non interactive mode: privide a plugin type" && exit 1
         [ -z "$SHORTNAME" ] && echo "Non interactive mode: privide a component name" && exit 1
-        [ -z "$NAME" ] && echo "Non interactuive mode: privide name" && exit 1
-        [ -z "$MINVERSION" ] && echo "Non interactuive mode: privide a minimum required Moodle version" && exit 1
-        [ -z "$RELEASE" ] && echo "Non interactuive mode: privide a release name (x.x.x)" && exit 1
-        [ -z "$VERSION" ] && echo "Non interactuive mode: privide version string" && exit 1
-        [ -z "$MATUTIRY" ] && echo "Non interactuive mode: privide maturity string" && exit 1
+        [ -z "$NAME" ] && echo "Non interactive mode: privide name" && exit 1
+        [ -z "$MINVERSION" ] && echo "Non interactive mode: privide a minimum required Moodle version" && exit 1
+        [ -z "$RELEASE" ] && echo "Non interactive mode: privide a release name (x.x.x)" && exit 1
+        [ -z "$VERSION" ] && echo "Non interactive mode: privide version string" && exit 1
+        [ -z "$MATUTIRY" ] && echo "Non interactive mode: privide maturity string" && exit 1
     else
         #Show all the form
         TYPE="$(eval "$dialog $PLUGIN_TYPE_DIALOG $output")";
@@ -95,12 +97,12 @@ name: '$NAME'\n""$features_string"
     if [ "$PRIVACY" -eq 1 ]; then
         yaml+="privacy:\n    haspersonaldata: true\n"
     fi
-    #If the user choose to continue editing the file manually, output it and exit
+    #If the user choose to continue editing the file manually, output it and exit 
     if [ "$EDITMANUALLY" -eq 1 ]; then
         clear
         printf "\nCopy your recipe:"
         printf "\n\n%s\n\n" "$yaml"
-        exit
+        exit 0
     fi
 
     if [ -z "$NON_INTERACTIVE" ];then
@@ -117,7 +119,7 @@ name: '$NAME'\n""$features_string"
     rm "$IROOT"/"$recipename".yaml
     #Get the new plugin directory
     relpath="$(echo "$result" | sed "s+.*\/var\/www\/html++g")"
-    [ -z "$relpath" ] && printf "\nSomething went wrong" && exit
+    [ -z "$relpath" ] && printf "\nSomething went wrong" && exit 1
     [ "${relpath:${#relpath}-1:1}" != '/' ] && relpath+='/'
     [ "${relpath:0:1}" = '/' ] && relpath="${relpath:1:${#relpath}}"
     plugindir=$IROOT"$relpath"
@@ -126,11 +128,11 @@ name: '$NAME'\n""$features_string"
     #Check if we have a directory, otherwise something went wrong
     if [ -z "$plugindir" ];then 
         printf '\nAn error as occurred! Please try again...'
-        exit
+        exit 1
     fi
     #Create the git repository if requested by the user 
     if [ "$git" -eq 1 ]; then
-        cd "$plugindir" || ( printf "\nSomething went wrong..." && exit )
+        cd "$plugindir" || ( printf "\nSomething went wrong..." && exit 1)
         wget --quiet -O "$plugindir"/.gitignore "https://www.toptal.com/developers/gitignore/api/phpunit,phpstorm+all,macos,windows,linux,eclipse,visualstudiocode,netbeans,python,node,grunt,sublimetext,phpcodesniffer,composer" & mpdk_spinner $!
         git init --quiet
         git add .
