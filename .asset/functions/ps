@@ -30,7 +30,7 @@ mpdk_ps() {
     #Parse local options
     eval "$(getoptions mpdk_parser_definition_ps parse "$0")"
     parse "$@"
-    if [[ $ALL -eq 1 ]];then
+    if [[  -n "$ALL"  ]];then
         ilist="$(ls "$MPDK_ROOT")"
         for instance in $ilist;do
             [ ! -d "$MPDK_ROOT/$instance/moodle" ] && continue
@@ -38,17 +38,17 @@ mpdk_ps() {
             out+="$(mpdk -n "$instance" ps)"
             out+="\n------------------------------\n\n"
             running=$(mpdk_isrunning "$out")
-            if  [[ $running -eq 1 ]] ||
-                ([[ $NOT_INIT -eq 1 ]] &&
-                [[ $(mpdk_isinit "$out") -eq 0 ]]) || 
-                ([[ $STOPPED -eq 1 ]] && 
-                [[ $running -eq 0 ]])
+            if  [[  -n "$running"  ]] ||
+                ([[  -n "$NOT_INIT"  ]] &&
+                [[ -z $(mpdk_isinit "$out") ]]) || 
+                ([[  -n "$STOPPED"  ]] && 
+                [[  -z "$running"  ]])
              then
                 printf "%s" "$out"
              fi
         done
     else
-        mpdk_requireinstance 'or run "mpdk ps -a" for all\n\n'
+        mpdk_requireinstance 'or run "mpdk ps -a" for all'
         "$ASSET"/moodle-docker/bin/moodle-docker-compose ps -a
     fi
 }

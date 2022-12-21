@@ -41,13 +41,21 @@ mpdk_parser_definition_remove() {
 	disp :usage  -h --help -- "Display this screen" 
 }
 
+mpdk_parser_definition_downstopremove() {
+	setup OARGS abbr:true
+    flag ALL -a
+    flag FORCE -f
+    flag STOP -s
+    flag REMOVE -s
+}
+
 
 mpdk_stop() {
     #Parse local options
     eval "$(getoptions mpdk_parser_definition_stop parse "$0")"
     parse "$@"
-    [ -n "$FORCE" ] && FORCE="-f"
-    mpdk_downstopremove -s "$FORCE" "$ALL"
+    [ -n "$ALL" ] && ALL="-a"
+    mpdk_downstopremove -s "$ALL"
 }
 
 mpdk_down() {
@@ -56,7 +64,7 @@ mpdk_down() {
     parse "$@"
     [ -n "$FORCE" ] && FORCE="-f"
     [ -n "$ALL" ] && ALL="-a"
-    mpdk_downstopremove -d "$FORCE" "$ALL"
+    mpdk_downstopremove "$FORCE" "$ALL"
 }
 
 mpdk_remove() {
@@ -65,60 +73,53 @@ mpdk_remove() {
     parse "$@"
     [ -n "$FORCE" ] && FORCE="-f"
     [ -n "$ALL" ] && ALL="-a"
-    mpdk_downstopremove -s "$FORCE"
+    mpdk_downstopremove -s "$FORCE" "$ALL"
 }
 
 
 #Stop the instance and delete the volume (persisted data)
 mpdk_downstopremove() {
     #Parse local options
-    force=0;all=0;stop=0;remove=0;
-    local OPTIND
-    while getopts "arsf" options; do
-        case "${options}" in
-            a ) all=1;force=1;;
-            r ) remove=1;force=0;;
-            s ) stop=1;force=1;;
-            f ) force=1;;
-            * ) echo "Something went wrong" && exit 1
-        esac
-    done
+    eval "$(getoptions mpdk_parser_definition_downstopremove parse "$0")"
+    parse "$@"
+    
     #If not "-f" (force) ask confirmation to the user
-    if [ $force -eq 0 ]; then
+    if [ -z "$ALL" ] && [ -z "$STOP" ] && [ -z "$FORCE" ]; then
         instance=$(basename "$(dirname "$IROOT")")
-        msg="$( [ $remove -eq 1 ] && echo 'and ALL THE CODE' || echo '(not the code)')"
+        msg="$( [  -n "$REMOVE"  ] && echo 'and ALL THE CODE' || echo '(not the code)')"
         q="Are you sure? All the data $msg of the instance '$instance' will be lost forever, do you want to continue? (y/n) : "
         mpdk_confirmation  "$q" "Aborting..., use \"stop\" to stop the instance without losing data"
     fi
+    [ -n "$FORCE" ] && FORCE="-f"
     #If -a (all) down/remove/stop all the instances
-    if [ $all -eq 1 ];then
-        printf "You will be asked to confirm for each instance...\n"
+    if [ -n "$ALL" ];then
+        [ -z "$STOP" ] && printf "You will be asked to confirm for each instance...\n"
         ilist="$(ls "$MPDK_ROOT")"
         msg='Nothing to do...'
         for instance in $ilist;do
             [ ! -f "$MPDK_ROOT/$instance/moodle/.mpdkinstance" ] && continue
-            if [ $stop -eq 1 ];then
-                [ -z "$(mpdk_isrunning "$(mpdk -n "$instance "ps)")" ] && continue
+            if [ -n "$STOP" ];then
+                [ -z "$(mpdk_isrunning "$(mpdk -n "$instance" ps)")" ] && continue
                 mpdk -n "$instance" stop
-                msg='\nAll instances have been stopped'
-            elif [ $remove -eq 1 ];then
-                mpdk -n "$instance" remove
-                msg='\nAll not-running instances have been deleted!'
+                msg='All instances have been stopped'
+            elif [ -n "$REMOVE" ];then
+                mpdk -n "$instance" remove "$FORCE"
+                msg='All non running instances have been deleted!'
             else
                 [ ! -f "$MPDK_ROOT/$instance/moodle/.init" ] && continue
-                mpdk -n "$instance" down
-                msg='\nAll instances have been taken down'
+                mpdk -n "$instance" down "$FORCE"
+                msg='All instances have been taken down'
             fi
         done
-        printf "%s" "$msg"
+        printf "\n%s" "$msg"
     else
         #Down/remove/stop this instance
-        [ -z $IROOT ] && echo "An instance must be defined, use -a for all or specify one" && exit 1
+        [ -z "$IROOT" ] && mpdk_error "An instance must be defined, use -a for all or specify one"
         mpdk_requireinstance
-        if [ $stop -eq 1 ];then
+        if [ -n "$STOP" ];then
             mpdk_requirerunning
             "$ASSET"/moodle-docker/bin/moodle-docker-compose stop
-        elif [ $remove -eq 1 ];then
+        elif [ -n "$REMOVE" ];then
             if [ -n "$(mpdk_isinit)" ];then
                 "Cannot delete the instance, run 'mpdk down' first"
                 exit 1
@@ -127,7 +128,7 @@ mpdk_downstopremove() {
         else
             mpdk_requireinit
             "$ASSET"/moodle-docker/bin/moodle-docker-compose down 
-            rm $IROOT.init
+            rm "$IROOT/.init"
         fi
     fi
 }

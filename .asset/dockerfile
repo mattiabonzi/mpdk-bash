@@ -2,7 +2,7 @@ FROM moodlehq/moodle-php-apache:${MOODLE_DOCKER_PHP_VERSION:-8.0}
 #Set the shell to bash
 SHELL ["/bin/bash", "-c"]
 RUN apt update
-RUN wget unzip zip
+RUN apt install -y wget unzip zip
 #On slow net python may fail with "libpython3.9-stdlib connection timed out"
 RUN apt install -y python3 || apt install -y python3
 #Install NVM and latest LTS Node
@@ -13,5 +13,7 @@ RUN cd /opt && wget -O composer-setup.php https://getcomposer.org/installer && p
 RUN mv /opt/composer.phar /usr/local/bin/composer
 #Install moosh
 RUN cd /opt && git clone --depth 1 https://github.com/tmuras/moosh.git
-RUN composer install -d opt/moosh/
-RUN ln -s opt/moosh/moosh.php /usr/local/bin/moosh
+RUN cd /opt/moosh/ && composer update && composer install
+RUN ln -s /opt/moosh/moosh.php /usr/local/bin/moosh
+#Install xdebug (not enabled by default)
+RUN pecl install xdebug

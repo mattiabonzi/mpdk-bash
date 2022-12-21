@@ -17,7 +17,7 @@
 # along with Mpdk.  If not, see <http://www.gnu.org/licenses/>.
 
 
-source .asset/t/osht.sh
+source ".asset/lib/osht.sh"
 
 #TEST: download moodle
 #Crete a new instance

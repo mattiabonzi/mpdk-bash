@@ -51,7 +51,7 @@ mpdk_sniff() {
         plugins="$(mpdk_getmyplugins)"
     fi
     #Output the installed rule
-    mpdk sh local/codechecker/phpcs/bin/phpcs -i 
+    mpdk ex local/codechecker/phpcs/bin/phpcs -i 
     printf "\n--------------------------------"
     for plugin in $plugins;do
         fpath="$(mpdk_getpluginpath "$plugin")"
@@ -61,11 +61,11 @@ mpdk_sniff() {
             printf "\n\n\nPLUGIN: %s\n" "$plugin"
             if [ -n "$PHP" ];then
                 printf "PHP\n\n"
-                mpdk_sh php local/codechecker/phpcs/bin/phpcs -v --colors "$fpath"
+                mpdk_ex php local/codechecker/phpcs/bin/phpcs -v --colors "$fpath"
             fi
             if [ -n "$GRUNT" ];then
                 printf "\n\nJS/CSS\n\n"
-                mpdk_sh grunt --root=./"$fpath" eslint
+                mpdk_ex grunt --root=./"$fpath" eslint
             fi
             printf "\n\n--------------------------------"
         fi

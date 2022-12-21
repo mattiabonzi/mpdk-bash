@@ -16,13 +16,13 @@
 # You should have received a copy of the GNU General Public License
 # along with Mpdk.  If not, see <http://www.gnu.org/licenses/>.
 
-source .asset/t/osht.sh
+source ".asset/lib/osht.sh"
 
-#TEST: stop
-#Stop an instance or all instances
+#TEST: Down
+#Stop an instance or all instances and delete docker volumes (docker-compose down)
 
 #RESET
-echo "rm -rf ./mpdktest* && docker ps -aq -f "name=mpdktest*" | xargs docker stop | xargs docker rm" >> reset
+echo 'rm -rf ./mpdktest* && docker ps -aq -f "name=mpdktest*" | xargs docker stop | xargs docker rm' >> reset
 
 #VAR
 root=$(PWD)
@@ -45,14 +45,14 @@ fi
 
 ######### BEGIN #########
 cd ./mpdktest1
-RUNS $mpdk stop
-RUNS docker ps -f "name=mpdktest1"
+RUNS $mpdk down -f
+RUNS docker ps -af "name=mpdktest1" 
 NGREP "webserver"
 cd ..
 
-RUNS $mpdk stop -a
-GREP "All instances have been stopped"
-RUNS docker ps -f "name=mpdktest*" 
+RUNS $mpdk down -af
+GREP "All instances have been taken down"
+RUNS docker ps -af "name=mpdktest*" 
 NGREP "webserver"
 ######### END #########
 
@@ -63,10 +63,4 @@ NGREP "webserver"
 if [ -n "$MPDK_TEST_RESET_EACH" ];then
     $(cat $root/reset)
     rm -f $root/reset
-else
-#Run agan the conainer to continue testing
-    cd ./mpdktest1 && $mpdk run > /dev/null && cd ..
-    cd ./mpdktest2 && $mpdk run -p 8002 -P 8003 > /dev/null && cd ..
-    cd ./mpdktest3 && $mpdk run -p 8004 -P 8005 > /dev/null && cd ..
-    cd ./mpdktest4 && $mpdk run -p 8006 -P 8007 > /dev/null && cd ..
 fi

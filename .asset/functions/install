@@ -32,7 +32,7 @@ mpdk_parser_definition_install() {
 mpdk_install() {
     eval "$(getoptions mpdk_parser_definition_install parse "$0")"
     parse "$@"
-    [ -f "$ASSET"/config ] && echo "Already installed!" && exit 1
+    [ -f "$ASSET"/config ] && mpdk_error "Already installed!"
     #Create dir
     mkdir "$ASSET"/cache "$ASSET"/recipe
     touch "$ASSET"/myplugins "$ASSET"/config
@@ -41,10 +41,10 @@ mpdk_install() {
     #Customzie Moodle-docker
     cp "$ASSET"/local.yml "$ASSET"/moodle-docker/local.yml
     cp "$ASSET"/dockerfile "$ASSET"/moodle-docker/dockerfile
-    if [ "$NON_INTERACTIVE" -eq 1 ];then 
-            [ -z "$INSTALL_ON_PATH" ]  && echo "Non interactive mode: choose if install mpdk globaly" && exit 1
-            [ -z "$COPYRIGHT_STRING" ] && echo "Non interactive mode: provide a copyright string" && exit 1
-            [ -z "$MPDK_EDIOTR" ] && echo "Non interactive mode: provide a path to an editor" && exit 1  
+    if [  -n "$NON_INTERACTIVE"  ];then 
+            [ -z "$INSTALL_ON_PATH" ]  && mpdk_error "Non interactive mode: choose if install mpdk globaly"
+            [ -z "$COPYRIGHT_STRING" ] && mpdk_error "Non interactive mode: provide a copyright string"
+            [ -z "$MPDK_EDIOTR" ] && mpdk_error "Non interactive mode: provide a path to an editor"  
     fi
     mpdk_install_setcopyright
     mpdk_install_seteditor

@@ -22,7 +22,8 @@ mpdk_parser_definition_new() {
 	msg -- '' 'Options:'
 	param VERSION  -v --version -- "Moodle version to install"
     flag TEST -t --testing -- "Create a test-only instance (do not install dev utils)"
-	disp :usage  -h --help -- "Display this screen" 
+	flag NOCACHE -c --no-cache -- "Disable local cache"
+    disp :usage  -h --help -- "Display this screen" 
     msg -- '' 'Arguments:'
     msg label:'<names>' -- "name for the new instance (use a self-exlplaining name)"
 }
@@ -36,12 +37,14 @@ mpdk_new() {
     #Sanity check
     [ -z "$name" ] && printf "\nA name is reuiqred for the new instance!" && exit 1
     [ -d "$MPDK_ROOT"/"$name" ] && printf '\nInstance already exist' && exit 1
-    [ -z "$VERSION" ] && VERSION="" || VERSION="-v $VERSION"
+    [ -n "$VERSION" ] && VERSION="-v $VERSION"
+    [ -n "$NOCACHE" ] && NOCACHE="-c"
     #Create dir and change pwd
     mkdir "$MPDK_ROOT"/"$name"
     cd "$MPDK_ROOT"/"$name"/ || (printf '\nSomething went wrong...' && exit 1)
-    #Download moodle (the cache is used if present)
-    mpdk_download_moodle "$VERSION"
+    #Download moodle (the cache is used if present and nocache is't defined)
+    # shellcheck disable=2086
+    mpdk_download_moodle $NOCACHE $VERSION
     #Get the archive name
     moodle="$(ls "$MPDK_ROOT"/"$name"/moodle*)"
     #Extract the archive

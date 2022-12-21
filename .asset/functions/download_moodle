@@ -47,11 +47,11 @@ mpdk_download_moodle() {
         elif [[ $VERSION =~ ^[0-9]+\.[0-9]+$ ]];then
             link="https://download.moodle.org/download.php/direct/stable${branch}/moodle-latest-${branch}.zip"
         else
-            echo "Use syntax 'x.x' or 'x.x.x' to specify the version" && exit 1
+            mpdk_error "Use syntax 'x.x' or 'x.x.x' to specify the version"
         fi
     fi
     msg="Unable to build a valid url, use syntax 'x.x' or 'x.x.x' to specify the version"
-    [ -z "$link" ] && echo "$msg" && exit 1
+    [ -z "$link" ] && mpdk_error "$msg"
     [ -n "$returnurl" ] && echo "$link" && exit 0
 
     if [ -n "$NOCACHE" ];then

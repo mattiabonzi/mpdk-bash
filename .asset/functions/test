@@ -42,6 +42,6 @@ mpdk_test() {
        [ -n "$test" ] && test='--tags=@'$test
         docker exec -u www-data "$COMPOSE_PROJECT_NAME-webserver-1" php admin/tool/behat/cli/run.php "$test"
     else
-        mpdk_sh php admin/tool/phpunit/cli/util.php --run "$test"
+        mpdk_ex php admin/tool/phpunit/cli/util.php --run "$test"
     fi
 }

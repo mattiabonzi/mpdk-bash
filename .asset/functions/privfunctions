@@ -20,6 +20,7 @@
 
 # This file contain only functions that are not direcly exposed in the API, and are only used as utility functions
 
+# shellcheck disable=2254
 mpdk_confirmation() {
     question=${1:-"Are you sure? (y/n) : "}
     answerno=${2:-"Aborting..."}
@@ -29,8 +30,8 @@ mpdk_confirmation() {
     while true; do
         read -r -p "$question" yn
         case $yn in
-            "$yesanswer" ) break;;
-            "$noanswer" ) echo "$answerno"; exit 0;;
+            $yesanswer ) break;;
+            $noanswer ) echo "$answerno"; exit 0;;
             * ) echo "$notaccepted";;
         esac
     done
@@ -59,20 +60,21 @@ mpdk_spinner() {
     spin='⣾⣽⣻⢿⡿⣟⣯⣷'
     i=0
     while kill -0 "$pid" 2>/dev/null;do
-        i=$(( (i+1) %4))
+        i=$(( (i+1) %8))
         printf "\r%s Working...\t" "${spin:$i:1}"
-        sleep .08
+        sleep .1
     done
     tput cnorm
 }
 
 mpdk_isrunning() {
-     [[ "$1" =~ .*"Up".*"80/tcp".*"webserver-1".* ]] && echo true
+    [[ "$1" =~ .*"webserver".*"running".*"80/tcp".* ]] &&
+    printf "true"
 }
 
 mpdk_requirerunning() {
     local msg="The instance \"$COMPOSE_PROJECT_NAME\" is not running, use mpdk run to start it"
-    [ "$(mpdk_isrunning "$(mpdk_ps)")" -eq 0 ] && echo "$msg" && exit 1
+    [ -z "$(mpdk_isrunning "$(mpdk_ps)")" ] && mpdk_error "$msg"
 }
 
 mpdk_isinstance() {
@@ -98,12 +100,12 @@ mpdk_isinit() {
 
 mpdk_requireinit() {
     local msg="The instance \"$COMPOSE_PROJECT_NAME\" has not been initialized, use \"mpdk init\" to init i or \"mpdk run\" to init and start it"
-    [ -z "$(mpdk_isinit)" ] && echo "$msg" && exit 1
+    [ -z "$(mpdk_isinit)" ] && mpdk_error "$msg"
 }
 
 mpdk_usage() {
     msg=${1:-"\n"}
-    printf "Usage: mpdk [global options...] <command> [options...] [arguments...]\nTry 'mpdk -h' for help %s" "$msg"
+    printf "Usage: mpdk [global options...] <command> [options...] [arguments...]\nTry 'mpdk -h' for help %s\n\n" "$msg"
 }
 
 #Show extended help message
@@ -111,3 +113,7 @@ mpdk_extendedhelp() {
     open "https://github.com/mattiabonzi/mpdk"
 }
 
+mpdk_error() { 
+    printf "Error: %s\n" "$*" >&2
+    exit 1
+}

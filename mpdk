@@ -54,9 +54,11 @@ if [ -d "$ASSET"/userfunctions/ ];then
     done
 fi
 
-# shellcheck disable=SC1083
+trap 'kill $(jobs -p) 2>&1 > /dev/null; wait; echo "Cancelling...!";' SIGINT SIGTERM
+
+# shellcheck disable=SC1083,SC2317
 mpdk_parser_definition() {
-	setup   OARGS help:usage abbr:true width:"35,18" no:'0' -- '' "Usage: mpdk [global options...] <command> [options...] [arguments...]"
+	setup   OARGS help:usage abbr:true width:"35,18" -- '' "Usage: mpdk [global options...] <command> [options...] [arguments...]"
 	msg -- 'Moodle Plugin Development Kit (wrapper for github.com/moodlehq/moodle-docker)'
 	msg -- '' 'Global Options:'
 	flag NON_INTERACTIVE -c --non-interactive init:@no -- "Do not ask to input input, use only provided options"
@@ -77,7 +79,7 @@ mpdk_parser_definition() {
 	cmd remove -- "Remove (delete) the instance codebase"
 	cmd test -- "Execute all or the specified PhpUnit/Behat test"
 	cmd sniff -- "Execute PhpCS and/or Grunt ESlint for the specified plugins\nIt only works with registered plugin, see 'addplugin'"
-	cmd sh -- "Execute commands inside the container\nShortcut for 'docker exec {container-name} bash -l -c <commands>'"
+	cmd ex -- "Execute commands inside the container\nShortcut for 'docker exec {container-name} bash -l -c <commands>'"
 	cmd ps -- "Show the list of running docker container for the instance"
 	cmd newplugin -- "Interactivly create a new plugin structure with tool_pluginskel\nRefers to tool_pluginskel documentation for help with the recipe"
 	cmd addplugin -- "Add a plugin to the registered plugins list (for code checking and version management)"
@@ -115,6 +117,7 @@ if [ -z "$IROOT" ]; then
     fi
 fi
 
+
 #If the instance root is defined, export ENV needed by moodle-docker
 if  [ -n "$IROOT" ];then
     [ "${IROOT:${#IROOT}-1:1}" != '/' ] && IROOT+='/'
@@ -150,7 +153,7 @@ case $1 in
     init ) mpdk_init "$@";exit 0;;
     run ) mpdk_run "$@";exit 0;;
     test ) mpdk_test "$@";exit 0;;
-    sh ) mpdk_sh "$@";exit 0;;
+    ex ) mpdk_ex "$@";exit 0;;
     sniff ) mpdk_sniff "$@";exit 0;;
     * ) mpdk_usage;exit 0;;
 esac

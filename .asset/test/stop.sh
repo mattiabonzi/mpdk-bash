@@ -16,13 +16,13 @@
 # You should have received a copy of the GNU General Public License
 # along with Mpdk.  If not, see <http://www.gnu.org/licenses/>.
 
-source .asset/t/osht.sh
+source ".asset/lib/osht.sh"
 
-#TEST: new
-#Crete a new instance, download moodle
+#TEST: stop
+#Stop an instance or all instances
 
 #RESET
-echo "rm -rf ./mpdktest1 ./mpdktest2 ./mpdktest3" >> reset
+echo 'rm -rf ./mpdktest* && docker ps -aq -f "name=mpdktest*" | xargs docker stop | xargs docker rm' >> reset
 
 #VAR
 root=$(PWD)
@@ -33,37 +33,33 @@ PLAN $(grep -c "^\s*RUNS\|^\s*OK\|^\s*NOK\|^\s*GREP\|^\s*NGREP\|^\s*NEGREP\|^\s*
 
 if [ -n "$MPDK_TEST_RESET_EACH" ];then
     $mpdk install --copyright "Jonh smith <Jonhsmith@myorg,com>" --editor "/Applications/PhpStorm" --global no
+    $mpdk new mpdktest1
+    $mpdk new mpdktest2
+    $mpdk new mpdktest3
+    $mpdk new mpdktest4
+    cd ./mpdktest1 && $mpdk run > /dev/null && cd ..
+    cd ./mpdktest2 && $mpdk run -p 8002 -P 8003 > /dev/null && cd ..
+    cd ./mpdktest3 && $mpdk run -p 8004 -P 8005 > /dev/null && cd ..
+    cd ./mpdktest4 && $mpdk run -p 8006 -P 8007 > /dev/null && cd ..
 fi
 
-
 ######### BEGIN #########
-RUNS $mpdk -t new mpdktest1
-GREP "Instance ready, located in"
-OK -d ./mpdktest1/moodle
-OK -f ./mpdktest1/moodle/.mpdkinstance
-OK -f ./mpdktest1/moodle/version.php
-RUNS ls $asset/cache
-GREP .
-NOK -f ./mpdktest2//moodle/admin/tool/pluginskel/version.php 
-NOK -f ./mpdktest2/moodle/local/codechecker/version.php 
-NOK -f ./mpdktest2/moodle/local/moodlecheck/version.php 
+cd ./mpdktest1
+RUNS $mpdk stop
+RUNS docker ps -f "name=mpdktest*" 
+NGREP "Up \d"
+OK $(docker ps -af "name=mpdktest1" | grep -c "Exited") = 5
+cd ..
 
-RUNS $mpdk new mpdktest2
-OK -d ./mpdktest2/moodle
-OK -f ./mpdktest2/moodle/.mpdkinstance 
-OK -f ./mpdktest2/moodle/version.php 
-OK -f ./mpdktest2//moodle/admin/tool/pluginskel/version.php 
-OK -f ./mpdktest2/moodle/local/codechecker/version.php 
-OK -f ./mpdktest2/moodle/local/moodlecheck/version.php 
-
-RUNS $mpdk new -v 3.9.18 mpdktest3 
-OK -d ./mpdktest3/moodle 
-OK -f ./mpdktest3/moodle/.mpdkinstance 
-OK -f ./mpdktest3/moodle/version.php 
-RUNS cat ./mpdktest3/moodle/version.php 
-GREP 2020061518 
-IS $(ls .asset/cache | wc -l) -eq 2 
+RUNS $mpdk stop -a
+GREP "All instances have been stopped"
+RUNS docker ps -f "name=mpdktest*" 
+NGREP "Up \d"
+OK $(docker ps -af "name=mpdktest1" | grep -c "Exited") = 20
 ######### END #########
+
+
+
 
 #RESET
 if [ -n "$MPDK_TEST_RESET_EACH" ];then

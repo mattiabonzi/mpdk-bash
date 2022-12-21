@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Mpdk.  If not, see <http://www.gnu.org/licenses/>.
 
-source .asset/t/osht.sh
+source ".asset/lib/osht.sh"
 
 #TEST: install
 #Downlaod and install all the required asset, create config files...

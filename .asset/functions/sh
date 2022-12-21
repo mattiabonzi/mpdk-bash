@@ -21,8 +21,9 @@ mpdk_parser_definition_sh() {
 }
 
 #Execute command inside the webserver container
-mpdk_sh() {
+mpdk_ex() {
     eval "$(getoptions mpdk_parser_definition_sh parse "$0")"
+    [ "$1" = "ex" ] && shift
     # shellcheck disable=2124
     cmd="$@"
     docker exec "$COMPOSE_PROJECT_NAME-webserver-1" bash -l -c "$cmd"
