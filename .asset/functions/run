@@ -26,6 +26,7 @@ mpdk_parser_definition_run() {
     flag BEHAT -b --behat -- "Init (if necessary) as Behat test instance"
     param WEBPORT -p --webport init:=8000 -- "  Specify the web port"
     param DBPORT -P --dbport init:=8001 -- "Specify the db port"
+    flag SAVE -s --save -- "Save the information for the next run (Port, Open)"
     flag OPEN -o --open -- "Open a browser at the end (only dev instances)"
 	disp :usage  -h --help -- "Display this screen"
 
@@ -59,6 +60,10 @@ mpdk_run() {
     [[  -n "$PHPUNIT"  ]] && PHPUNIT='-t'
     [[  -n "$BEHAT"  ]] && BEHAT='-b'
     mpdk_init "$DEV" "$PHPUNIT" "$BEHAT"
+    #Save information for the nexr run
+    if [ -n "$SAVE" ];then
+        printf "export MOODLE_DOCKER_WEB_PORT='$WEBPORT'\nexport MOODLE_DOCKER_DB_PORT='$DBPORT'";
+    fi
     #Show "docker ps" to the user
     "$ASSET"/moodle-docker/bin/moodle-docker-compose ps
     #Mark as initialized
