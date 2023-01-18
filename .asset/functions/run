@@ -62,7 +62,7 @@ mpdk_run() {
     mpdk_init "$DEV" "$PHPUNIT" "$BEHAT"
     #Save information for the nexr run
     if [ -n "$SAVE" ];then
-        printf "export MOODLE_DOCKER_WEB_PORT='$WEBPORT'\nexport MOODLE_DOCKER_DB_PORT='$DBPORT'";
+        printf "export MOODLE_DOCKER_WEB_PORT='$WEBPORT'\nexport MOODLE_DOCKER_DB_PORT='$DBPORT'" > "$IRROT/../env";
     fi
     #Show "docker ps" to the user
     "$ASSET"/moodle-docker/bin/moodle-docker-compose ps

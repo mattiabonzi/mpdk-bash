@@ -30,9 +30,8 @@ mpdk_download_moodle() {
     #Parse local options
     eval "$(getoptions mpdk_parser_definition_download_moodle parse "$0")"
     parse "$@"
-    
     if [ -z "$VERSION" ];then
-        link="$( wget -q  -O - https://download.moodle.org/releases/latest/ | grep -o "https://download\.moodle\.org/download\.php/stable\d\+/moodle-latest-\d\+\.zip" | head -1 | sed 's+stable+direct/stable+g')"
+        link="$( wget -q  -O - https://download.moodle.org/releases/latest/ | grep -o "https://download\.moodle\.org/download\.php/stable\d\+/moodle-[A-Za-z0-9\.-]\+\.zip" | head -1 | sed 's+stable+direct/stable+g')"
     else
         if [[ "${VERSION:0:1}" = 4 ]];then
             branch=$(echo "$VERSION" | cut -d '.' -f1,2 | tr '.' 0)

@@ -148,7 +148,7 @@ case $1 in
     addplugin ) mpdk_addplugin "$@";exit 0;;
     stop ) mpdk_stop "$@";exit 0;;
     down ) mpdk_down "$@";exit 0;;
-    remove ) mpdk_remove -r "$@";exit 0;;
+    remove ) mpdk_remove "$@";exit 0;;
     ps ) mpdk_ps "$@";exit 0;;
     init ) mpdk_init "$@";exit 0;;
     run ) mpdk_run "$@";exit 0;;

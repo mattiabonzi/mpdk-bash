@@ -46,7 +46,7 @@ mpdk_parser_definition_downstopremove() {
     flag ALL -a
     flag FORCE -f
     flag STOP -s
-    flag REMOVE -s
+    flag REMOVE -r
 }
 
 
@@ -73,7 +73,7 @@ mpdk_remove() {
     parse "$@"
     [ -n "$FORCE" ] && FORCE="-f"
     [ -n "$ALL" ] && ALL="-a"
-    mpdk_downstopremove -s "$FORCE" "$ALL"
+    mpdk_downstopremove -r "$FORCE" "$ALL"
 }
 
 
