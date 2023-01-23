@@ -97,7 +97,7 @@ mpdk_downstopremove() {
         ilist="$(ls "$MPDK_ROOT")"
         msg='Nothing to do...'
         for instance in $ilist;do
-            [ ! -f "$MPDK_ROOT/$instance/moodle/.mpdkinstance" ] && continue
+            [ ! -f "$MPDK_ROOT/$instance/mpdkinstance.env" ] && continue
             if [ -n "$STOP" ];then
                 [ -z "$(mpdk_isrunning "$(mpdk -n "$instance" ps)")" ] && continue
                 mpdk -n "$instance" stop
@@ -124,7 +124,7 @@ mpdk_downstopremove() {
                 "Cannot delete the instance, run 'mpdk down' first"
                 exit 1
             fi
-            rm -rf "$IROOT" & mpdk_spinner $!
+            rm -rf "$IROOT"
         else
             mpdk_requireinit
             "$ASSET"/moodle-docker/bin/moodle-docker-compose down 

@@ -61,7 +61,7 @@ mpdk_spinner() {
     i=0
     while kill -0 "$pid" 2>/dev/null;do
         i=$(( (i+1) %8))
-        printf "\r%s Working...\t" "${spin:$i:1}"
+        printf "\r%s Working...\t" "${spin:$i:1}\n"
         sleep .1
     done
     tput cnorm
@@ -78,11 +78,11 @@ mpdk_requirerunning() {
 }
 
 mpdk_isinstance() {
-     [ -f "$IROOT/.mpdkinstance" ]  && echo true
+     [ -f "$IROOT/../mpdkinstance.env" ]  && echo true
 }
 
 mpdk_requireinstance() {
-    #If the .mpdkinstance file does not exist, quit 
+    #If the mpdkinstance.env file does not exist, quit 
     if [ -z "$IROOT" ];then
         printf "\nAn instance must be defined to run this command!\n"
         quit=true
@@ -114,6 +114,25 @@ mpdk_extendedhelp() {
 }
 
 mpdk_error() { 
-    printf "Error: %s\n" "$*" >&2
-    exit 1
+    printf "\nError: %s\n" "$*" >&2
+    export MPDK_ERROR=true
+    echo "$MPDK_ROLLBACK"
+    if [ -n "$MPDK_ROLLBACK" ] ; then
+        mpdk_rollaback
+    fi
+   exit
+}
+
+
+mpdk_begin() {
+     export MPDK_ROLLBACK="$1" 
+}
+
+mpdk_commit() {
+    export MPDK_ROLLBACK=""
+}
+
+mpdk_rollaback() {
+    $MPDK_ROLLBACK
+    mpdk_commit
 }

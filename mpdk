@@ -54,7 +54,7 @@ if [ -d "$ASSET"/userfunctions/ ];then
     done
 fi
 
-trap 'kill $(jobs -p) 2>&1 > /dev/null; wait; echo "Cancelling...!";' SIGINT SIGTERM
+trap 'kill $(jobs -p) 2>&1 > /dev/null; wait; echo "Cancelling...!";' SIGINT SIGTERM SIGUSR1
 
 # shellcheck disable=SC1083,SC2317
 mpdk_parser_definition() {
@@ -98,18 +98,15 @@ if [ -z "$IROOT" ]; then
         IROOT="$MPDK_ROOT/${INSTANCE_NAME}/moodle";
     elif [ -n "$INSTANCE_ROOT" ]; then
         IROOT="$INSTANCE_ROOT"
-    elif [ -f "$(pwd)/.mpdkinstance" ]; then
-        IROOT=$(pwd)
-    elif [ -f "$(pwd)/moodle/.mpdkinstance" ]; then
-        IROOT="$(pwd)/moodle"
+    elif [ -f "$(pwd)/mpdkinstance.env" ]; then
+       IROOT="$(pwd)/moodle"
+    elif [ -f "$(pwd)/../mpdkinstance.env" ]; then
+        IROOT="$(pwd)"
     else
         back="../"
         for (( i=1; i<=20; i++ ));do
             p="$(realpath "$(pwd)/$back")"
-            if [ -f "$p/.mpdkinstance" ];then
-                IROOT="$p";break
-            fi
-            if [ -f "$p/moodle/.mpdkinstance" ]; then
+            if [ -f "$p/mpdkinstance.env" ]; then
                 IROOT="$p/moodle";break
             fi
             back+='../'
@@ -120,19 +117,15 @@ fi
 
 #If the instance root is defined, export ENV needed by moodle-docker
 if  [ -n "$IROOT" ];then
+    #Add trailing slash if needed
     [ "${IROOT:${#IROOT}-1:1}" != '/' ] && IROOT+='/'
     mpdk_requireinstance
-    MOODLE_DOCKER_WWWROOT=$IROOT
-    MOODLE_DOCKER_DB=pgsql
-    COMPOSE_PROJECT_NAME="$(basename "$(dirname "$IROOT")")"
-    export MOODLE_DOCKER_WWWROOT
-    export MOODLE_DOCKER_DB
-    export COMPOSE_PROJECT_NAME
-    #Eventually load the instance env file
     # shellcheck source=/dev/null
-    [ -f "$IROOT/../env" ] && source "$IROOT/../env"
+    source "$IROOT/../mpdkinstance.env"
 fi
-export MOODLE_DOCKER_PHP_VERSION=8.0
+
+#Use psql as default
+export MOODLE_DOCKER_DB=${MOODLE_DOCKER_DB:-'pgsql'}
 #Eventually load the global env file
 # shellcheck source=/dev/null
 [ -f "$MPDK_ROOT/env" ] && source "$MPDK_ROOT/env"

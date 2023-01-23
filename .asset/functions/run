@@ -51,7 +51,8 @@ mpdk_run() {
     #Use the config.php file bundled with moodle-docker
     cp "$ASSET"/moodle-docker/config.docker-template.php "$MOODLE_DOCKER_WWWROOT"/config.php
     #Compose up
-    "$ASSET"/moodle-docker/bin/moodle-docker-compose --no-ansi up -d >> "$logfile" 2>&1 & mpdk_spinner $! 
+    "$ASSET"/moodle-docker/bin/moodle-docker-compose --ansi never build --build-arg PHP_VERSION=$MOODLE_DOCKER_PHP_VERSION >> "$logfile" 2>&1 & mpdk_spinner $!
+    "$ASSET"/moodle-docker/bin/moodle-docker-compose --ansi never up --no-build -d >> "$logfile" 2>&1 & mpdk_spinner $!
    
     #Wait for DB (maybe useless for pgsql, here for safety)
     "$ASSET"/moodle-docker/bin/moodle-docker-wait-for-db >> "$logfile" 2>&1 & mpdk_spinner $!
