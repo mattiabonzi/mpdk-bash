@@ -21,7 +21,7 @@
 
 
 >**Warning**<br>
->THE SCRIPT IS NOT STABLE YET, IT'S SUBJECT TO CONTINUOUS CHANGES AND COULD BREAK AT ANY POINT
+>Please see [this other repository](https://github.com/mattiabonzi/mpdk), this one is archived
 
 This script is a simple wrapper for [Moodle Docker](https://github.com/moodlehq/moodle-docker) and it's main pourpose is to make it faster and easier to use that enviroment.
 
