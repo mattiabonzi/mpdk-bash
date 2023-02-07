@@ -26,5 +26,5 @@ mpdk_ex() {
     [ "$1" = "ex" ] && shift
     # shellcheck disable=2124
     cmd="$@"
-    docker exec "$COMPOSE_PROJECT_NAME-webserver-1" bash -l -c "$cmd"
+    docker exec $MPDK_WEBSERVER bash -l -c "$cmd"
 }

@@ -21,7 +21,6 @@ mpdk_parser_definition_new() {
 	msg -- 'Create '
 	msg -- '' 'Options:'
 	param VERSION  -v --version -- "Moodle version to install"
-    flag TEST -t --testing -- "Create a test-only instance (do not install dev utils)"
 	flag NOCACHE -c --no-cache -- "Disable local cache"
     disp :usage  -h --help -- "Display this screen" 
     msg -- '' 'Arguments:'
@@ -45,44 +44,41 @@ mpdk_new() {
                 "$([  "$VERSION" = "`echo -e "$VERSION\n3.4" | sort -V | sed -n '2p'`" ] && echo 1)" ) MOODLE_DOCKER_PHP_VERSION=7.2;;
                 * ) mpdk_error "Version not supported or malformed, min version is 3.4 and syntax is x or x.x or x.x.x";
                 esac
+        else
+            MOODLE_DOCKER_PHP_VERSION=$MPDK_DEFAULT_PHP_VERSION;
         fi
         export MOODLE_DOCKER_PHP_VERSION;
     fi
     #Sanity check
-    [ -z "$name" ] && printf "\nA name is reuiqred for the new instance!" && exit 1
-    [ -d "$MPDK_ROOT"/"$name" ] && printf '\nInstance already exist' && exit 1
+    [ -z "$name" ] && mpdk_error "A name is reuiqred for the new instance!" 
+    [ -d "$MPDK_ROOT"/instances/"$name" ] && mpdk_error 'Instance already exist'
     [ -n "$VERSION" ] && VERSION="-v $VERSION"
     [ -n "$NOCACHE" ] && NOCACHE="-c"
+    IROOT="$MPDK_ROOT"/instances/"$name"
     #Create dir and change pwd
-    mkdir "$MPDK_ROOT/$name"
-    export MPDK_ROLLBACK="rm -rf $MPDK_ROOT/$name"
-    cd "$MPDK_ROOT/$name"/ || (printf '\nSomething went wrong...' && exit 1)
-    #Download moodle (the cache is used if present and nocache is't defined)
-    # shellcheck disable=2086
-    mpdk_download_moodle $NOCACHE $VERSION
-    #Get the archive name
-    moodle="$(ls "$MPDK_ROOT/$name/moodle"*)"
-    #Extract the archive
-    unzip -qq "$moodle"
-    #Remove the archive
-    rm "$moodle"
-    mpdkinstance="$(cat <<EOF 
-export MOODLE_DOCKER_WWWROOT=$MPDK_ROOT/$name/moodle
-export COMPOSE_PROJECT_NAME=$name
-export MOODLE_DOCKER_PHP_VERSION=$MOODLE_DOCKER_PHP_VERSION
-export MOODLE_DOCKER_DB=$MOODLE_DOCKER_DB
+    mkdir "$IROOT" || (mpdk_error 'Cannot create the instance folder...')
+    #Save rollback commnad as env (used in case of error)
+    export MPDK_ROLLBACK="rm -rf $IROOT"
+    cd "$IROOT/" || (mpdk_error 'Cannot create the instance folder...')
+    #Create log folder
+    mkdir "$IROOT/log" "$IROOT/moodle"
+    #Get the moodle version
+    set $(mpdk_download_moodle -V $NOCACHE $VERSION)
+    MOODLE_LINK=$1
+    MOODLE_VERSION=$2
+    #Save all the config
+    mpdkinstance="$(cat <<EOF
+MOODLE_DOCKER_VERSION=$MOODLE_VERSION
+MOODLE_DOCKER_LINK=$MOODLE_LINK
+MOODLE_DOCKER_WWWROOT=$IROOT/moodle
+IROOT=$IROOT
+COMPOSE_PROJECT_NAME=$name
+MOODLE_DOCKER_PHP_VERSION=$MOODLE_DOCKER_PHP_VERSION
+MOODLE_DOCKER_DB=$MOODLE_DOCKER_DB
 EOF
 )"
-    
-    printf '%s' "$mpdkinstance" > "$MPDK_ROOT"/"$name"/mpdkinstance.env
-    #If "-d" (develpment mode) download dev Moodle plugins local_codechecker, local_moodlecheck, tool_pluginskel
-    if [ -z "$TEST" ];then
-        git clone --quiet --depth 1 https://github.com/moodlehq/moodle-local_codechecker.git "$MPDK_ROOT"/"$name"/moodle/local/codechecker
-        git clone --quiet --depth 1 https://github.com/moodlehq/moodle-local_moodlecheck.git "$MPDK_ROOT"/"$name"/moodle/local/moodlecheck
-        git clone --quiet --depth 1 https://github.com/mudrd8mz/moodle-tool_pluginskel.git "$MPDK_ROOT"/"$name"/moodle/admin/tool/pluginskel
-        #Remove ".git" as we don't need to keep track of changes here 
-        rm -rf "$MPDK_ROOT"/"$name"/admin/tool/pluginskel/.git "$MPDK_ROOT"/"$name"/local_moodlecheck/.git "$MPDK_ROOT"/"$name"/moodle/local/codechecker/.git
-    fi
-    mpdk_commit
-    printf "\nInstance ready, located in '%s/%s/' use: 'mpdk -n$name run' to run it\n" "$MPDK_ROOT" "$name"
+    printf '%s' "$mpdkinstance" > "$IROOT/mpdkinstance.env"
+    #Ready
+    [ -n "$MPDK_DEBUG" ] && name="$name -x"
+    mpdk_commit "Instance ready, located in '$IROOT/' use: 'mpdk --name $name run' to run it"
 }

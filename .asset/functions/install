@@ -24,7 +24,7 @@ mpdk_parser_definition_install() {
     param COPYRIGHT_STRING -c --copyright -- "Copyright string, will be used for newly created plugins (only useful with --non-interactive)"
     param MPDK_EDIOTR -e --editor -- "Path to a code editor (only useful with --non-interactive)"
     flag UPDATING -u hidden:true
-	disp :usage  -h --help -- "Display this screen" 
+	disp :usage  -h --help -- "Display this screen"     
 }
 
 
@@ -34,13 +34,13 @@ mpdk_install() {
     parse "$@"
     [ -f "$ASSET"/config ] && mpdk_error "Already installed!"
     #Create dir
-    mkdir "$ASSET"/cache "$ASSET"/recipe
+    mkdir "$ASSET"/cache "$ASSET"/recipe "$MPDK_ROOT"/instances "$MPDK_ROOT"/plugins "$MPDK_ROOT"/moodle_cores
     touch "$ASSET"/myplugins "$ASSET"/config
     #Download dependencies
     git clone --quiet --depth 1 https://github.com/moodlehq/moodle-docker.git "$ASSET"/moodle-docker/
     #Customzie Moodle-docker
-    cp "$ASSET"/local.yml "$ASSET"/moodle-docker/local.yml
-    cp "$ASSET"/dockerfile "$ASSET"/moodle-docker/dockerfile
+    ln -s "$ASSET"/local.yml "$ASSET"/moodle-docker/local.yml
+    ln -s "$ASSET"/dockerfile "$ASSET"/moodle-docker/dockerfile
     if [  -n "$NON_INTERACTIVE"  ];then 
             [ -z "$INSTALL_ON_PATH" ]  && mpdk_error "Non interactive mode: choose if install mpdk globaly"
             [ -z "$COPYRIGHT_STRING" ] && mpdk_error "Non interactive mode: provide a copyright string"

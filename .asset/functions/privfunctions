@@ -55,15 +55,26 @@ mpdk_getpluginpath() {
 
 
 mpdk_spinner() {
+    mpdk_kill_tail_debug() {
+        while kill -0 "$2" 2>/dev/null;do
+            sleep .3
+        done
+        kill $1
+    }
     tput civis
     pid=$1
     spin='⣾⣽⣻⢿⡿⣟⣯⣷'
     i=0
-    while kill -0 "$pid" 2>/dev/null;do
-        i=$(( (i+1) %8))
-        printf "\r%s Working...\t" "${spin:$i:1}\n"
-        sleep .1
-    done
+    if [ -n "$MPDK_DEBUG" ];then
+        tail -f & mpdk_kill_tail_debug $! $pid
+    else
+        while kill -0 "$pid" 2>/dev/null;do
+            i=$(( (i+1) %8))
+            printf "\r%s Working...\t" "${spin:$i:1}\n"
+            sleep .1
+        done
+    fi
+
     tput cnorm
 }
 
@@ -73,24 +84,21 @@ mpdk_isrunning() {
 }
 
 mpdk_requirerunning() {
-    local msg="The instance \"$COMPOSE_PROJECT_NAME\" is not running, use mpdk run to start it"
-    [ -z "$(mpdk_isrunning "$(mpdk_ps)")" ] && mpdk_error "$msg"
+    msg="The instance \"$COMPOSE_PROJECT_NAME\" is not running, use mpdk run to start it"
+    [ -n "$(mpdk_isrunning "$(mpdk_ps)")" ] || mpdk_error "$msg"
 }
 
 mpdk_isinstance() {
-     [ -f "$IROOT/../mpdkinstance.env" ]  && echo true
+     [ -f "$IROOT/mpdkinstance.env" ]  && echo true
 }
 
 mpdk_requireinstance() {
     #If the mpdkinstance.env file does not exist, quit 
     if [ -z "$IROOT" ];then
-        printf "\nAn instance must be defined to run this command!\n"
-        quit=true
+        mpdk_error ${1:-"An instance must be defined to run this command, try -h for help!"}
     elif [ -z "$(mpdk_isinstance)" ];then
-        printf "\nThe speficied path is not an MPDK instance (%s)\n" "$IROOT"
-        quit=true
+        mpdk_error ${1:-"The speficied path is not an MPDK instance ($IROOT), try -h for help!"} 
     fi
-    [ -n "$quit" ] && mpdk_usage "$1" && exit 1
 }
 
 mpdk_isinit() {
@@ -100,7 +108,7 @@ mpdk_isinit() {
 
 mpdk_requireinit() {
     local msg="The instance \"$COMPOSE_PROJECT_NAME\" has not been initialized, use \"mpdk init\" to init i or \"mpdk run\" to init and start it"
-    [ -z "$(mpdk_isinit)" ] && mpdk_error "$msg"
+    [ -n "$(mpdk_isinit)" ] || mpdk_error "$msg"
 }
 
 mpdk_usage() {
@@ -114,13 +122,24 @@ mpdk_extendedhelp() {
 }
 
 mpdk_error() { 
-    printf "\nError: %s\n" "$*" >&2
+    printf "\n[\e[0;31mERROR\e[0m]: %s\n" "$*" >&2
     export MPDK_ERROR=true
-    echo "$MPDK_ROLLBACK"
     if [ -n "$MPDK_ROLLBACK" ] ; then
         mpdk_rollaback
     fi
-   exit
+    exit 1
+}
+
+mpdk_success() {
+    printf "\n[\e[0;32mSUCCESS\e[0m]: %s\n" "$*"
+}
+
+mpdk_warning() {
+    printf "\n[\e[0;33mWARNING\e[0m]: %s\n" "$*"
+}
+
+mpdk_info() {
+    printf "\n[\e[0;36mINFO\e[0m]: %s" "$*"
 }
 
 
@@ -130,6 +149,7 @@ mpdk_begin() {
 
 mpdk_commit() {
     export MPDK_ROLLBACK=""
+    [ -n "$1" ] && mpdk_success "$*"
 }
 
 mpdk_rollaback() {

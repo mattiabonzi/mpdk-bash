@@ -18,7 +18,7 @@
 
 
 mpdk_parser_definition_newplugin() {
-	setup   OARGS help:usage abbr:true -- '' "Usage: mpdk new [Options...] <name>"
+	setup   OARGS help:usage abbr:true -- '' "Usage: mpdk plugin new [Options...]"
 	msg -- 'Interactivly create a new plugin using tool_pluginskel'
     msg -- 'See github.comn/mudrd8mz/moodle-tool_pluginskel for help with the recipe'
     msg -- 'Use the interactive mode unless you really need not to'
@@ -34,7 +34,7 @@ mpdk_parser_definition_newplugin() {
     param MATURITY -m --maturity -- "Maturity string of the plugin"
     flag EDITMANUALLY -e --edit -- "Do not create the plugin, instead output the recipe file"
     flag GIT -g --git -- "Init a new git repository for the plugin"
-    falg GRUNT -j --grunt -- "Create a Gruntfile.js"
+    flag GRUNT -j --grunt -- "Create a Gruntfile.js"
     disp :usage  -h --help -- "Display this screen" 
 }
 
@@ -49,7 +49,11 @@ mpdk_newplugin() {
     #Get the dialog ENV if present use "dialog" as fallback
     dialog=${DIALOG:-dialog}
     #Output redirection required for use "dialog"
-    output="3>&1 1>&2 2>&3 3>&-"   
+    output="3>&1 1>&2 2>&3 3>&-"  
+
+    if [ -z "$NON_INTERACTIVE" ] && [ -z "$(which $dialog)" ];then
+        mpdk_error "dialog must be installed!"
+    fi
 
     if [ -n "$NON_INTERACTIVE" ];then
         echo "WARNING: the inout is not validated, be carefull!"
@@ -62,16 +66,16 @@ mpdk_newplugin() {
         [ -z "$MATUTIRY" ] && mpdk_error "Non interactive mode: privide maturity string"
     else
         #Show all the form
-        TYPE="$(eval "$dialog $PLUGIN_TYPE_DIALOG $output")";
-        SHORTNAME="$(eval "$dialog $PLUGIN_COMPONENT_NAME_DIALOG $output")";
-        NAME="$(eval "$dialog  $PLUGIN_DISPLAY_NAME_DIALOG $output")";
-        FEATURES="$(eval "$dialog $PLUGIN_FEATURES_DIALOG $output")";
-        PRIVACY="$(eval "$dialog $PLUGIN_PRIVACY_DIALOG $output")";
-        MINVERSION="$(eval "$dialog $PLUGIN_REQUIRES_VERSION_DIALOG $output")";
-        RELEASE="$(eval "$dialog $PLUGIN_RELEASE_DIALOG $output")";
-        VERSION="$(eval "$dialog $PLUGIN_VERSION_DIALOG $output")";
-        MATUTIRY="$(eval "$dialog $PLUGIN_MATURITY_DIALOG $output")";
-        EDITMANUALLY="$(eval "$dialog $PLUGIN_CREATE_DIALOG $output")";
+        TYPE="$(eval $dialog $PLUGIN_TYPE_DIALOG $output)"
+        SHORTNAME="$(eval $dialog $PLUGIN_COMPONENT_NAME_DIALOG $output)";
+        NAME="$(eval $dialog $PLUGIN_DISPLAY_NAME_DIALOG $output)";
+        FEATURES="$(eval $dialog $PLUGIN_FEATURES_DIALOG $output)";
+        PRIVACY="$(eval $dialog $PLUGIN_PRIVACY_DIALOG $output)";
+        MINVERSION="$(eval $dialog $PLUGIN_REQUIRES_VERSION_DIALOG $output)";
+        RELEASE="$(eval $dialog $PLUGIN_RELEASE_DIALOG $output)";
+        VERSION="$(eval $dialog $PLUGIN_VERSION_DIALOG $output)";
+        MATUTIRY="$(eval $dialog $PLUGIN_MATURITY_DIALOG $output)";
+        EDITMANUALLY="$(eval $dialog $PLUGIN_CREATE_DIALOG $output)";
     fi
     
 
@@ -98,64 +102,76 @@ name: '$NAME'\n""$features_string"
         yaml+="privacy:\n    haspersonaldata: true\n"
     fi
     #If the user choose to continue editing the file manually, output it and quit 
-    if [  -n "$EDITMANUALLY"  ]; then
+    if [ "$EDITMANUALLY" = 1 ]; then
         clear
         printf "\nCopy your recipe:"
-        printf "\n\n%s\n\n" "$yaml"
+        printf "\n\n$yaml\n\n"
         exit 0
     fi
 
     if [ -z "$NON_INTERACTIVE" ];then
     #Ask the user if to create also a git repo
-        git="$(eval "$dialog $PLUGIN_GIT_DIALOG $output")";
-        grunt="$(eval "$dialog $PLUGIN_GRUNT_DIALOG $output")";
+        git="$(eval $dialog $PLUGIN_GIT_DIALOG $output)";
+        grunt="$(eval $dialog $PLUGIN_GRUNT_DIALOG $output)";
         clear
     fi
+
     #Create the yaml file and copy it in the moodle dir, so it's visible inside the conatiner
-    printf "%s" "$yaml" > "$ASSET"/recipe/"$recipename".yaml
-    cp "$ASSET"/recipe/"$recipename".yaml "$IROOT"/"$recipename".yaml
+    plugindir="$MPDK_ROOT/plugins/$recipename"
+    mkdir "$plugindir"
+    printf "$yaml" > "$plugindir/recipe.yaml"
     #Execute tool_pluginskel generate.php
-    result="$(mpdk_ex php admin/tool/pluginskel/cli/generate.php --target-moodle=/var/www/html /var/www/html/"$recipename".yaml)"
-    rm "$IROOT"/"$recipename".yaml
+    result="$(mpdk_ex php admin/tool/pluginskel/cli/generate.php --target-moodle=/var/www/html /opt/mpdk/myplugins/$recipename/recipe.yaml)"
     #Get the new plugin directory
-    relpath="$(echo "$result" | sed "s+.*\/var\/www\/html++g")"
-    [ -z "$relpath" ] && printf "\nSomething went wrong" && exit 1
-    [ "${relpath:${#relpath}-1:1}" != '/' ] && relpath+='/'
-    [ "${relpath:0:1}" = '/' ] && relpath="${relpath:1:${#relpath}}"
-    plugindir=$IROOT"$relpath"
+    relpath="$(echo $result | sed "s+.*\/var\/www\/html++g")"
+    if [ -z "$relpath" ];then
+        mpdk_error "Something went wrong, cannoot find a relative installation path for the pluign!"
+    fi
+    container_dir="/var/www/html/$relpath"
+
+    #Check if we have a directory, otherwise something went wrong
+    if [ -z "$container_dir" ] || [ ! -d "$container_dir" ];then 
+        mpdk_error "An error as occurred, the plugin has not been generated! Please try again..."
+    fi
     #Get the warning and error from tool_pluginskel (warning are like useful advice)
     result="$(echo "$result" | sed "s+\[.\{32\}\].tool_pluginskel\.[A-Z]*:.+\n+g" | cut -f 1 -d "[")"
-    #Check if we have a directory, otherwise something went wrong
-    if [ -z "$plugindir" ];then 
-        printf '\nAn error as occurred! Please try again...'
-        exit 1
+    printf "$result" > "$plugindir/generation_warning.txt"
+    #Add a gruntfile
+    if [  -n "$grunt"  ];then
+       mpdk_newplugin_grunt  "$recipename $plugindir $container_dir"
     fi
-    #Create the git repository if requested by the user 
+    #Move the file in the shared mounted foluder then link them
+    mpdk_ex mv $container_dir /opt/mpdk/myplugins/$recipename
+    ln -s /opt/mpdk/myplugins/$recipename $container_dir
+    #Create the git repository if requested by the user (on the host side)
     if [  -n "$git"  ]; then
-        cd "$plugindir" || ( printf "\nSomething went wrong..." && exit 1)
-        wget --quiet -O "$plugindir"/.gitignore "https://www.toptal.com/developers/gitignore/api/phpunit,phpstorm+all,macos,windows,linux,eclipse,visualstudiocode,netbeans,python,node,grunt,sublimetext,phpcodesniffer,composer" & mpdk_spinner $!
+       mpdk_newplugin_initgit $plugindir
+    fi
+    #Save the entry in myplugins file
+    mpdk_addplugin "$recipenam" "$relpath" "$COMPOSE_PROJECT_NAME"
+    #Print the warnign and error from tool_pluginskel to the use
+    printf "\n\n%s\n" "$result"
+    mpdk_success "Your plugin is ready inside: '$plugindir', enjoy coding!"
+}
+
+
+mpdk_newplugin_initgit() {
+ cd "$1" || ( printf "\nSomething went wrong..." && exit 1)
+        wget --quiet -O "$1"/.gitignore "https://www.toptal.com/developers/gitignore/api/phpunit,phpstorm+all,macos,windows,linux,eclipse,visualstudiocode,netbeans,python,node,grunt,sublimetext,phpcodesniffer,composer" 
         git init --quiet
         git add .
         #Make the first commit
         git commit --quiet -m "Initial commit, plugin just generated with mpdk and pluginskel (auto)" 
-    fi
-    #Add a gruntfile
-    clear
-    if [  -n "$grunt"  ];then
-        printf '{\n    "name": "moodle-%s",\n    "private": true}' "$recipename" > "$plugindir"/package.json
-        mpdk_ex "cd $relpath && npm install --save-dev grunt grunt-contrib-less grunt-contrib-watch grunt-load-gruntfile 1>/dev/null" & mpdk_spinner $!
-        #Adjust the reference to the global gruntfile
-        gruntpath="$(echo "$relpath" | sed -r "s#[A-Za-z0-9-]+#\.\.#g")"Gruntfile.js
-        cat "$ASSET"/gruntfile | sed "s+%relpath%+$gruntpath+g" > "$plugindir"/Gruntfile.js
-    fi
-    #Save the entry in myplugins file
-    mpdk_addplugin "$recipename" "$relpath"
-    #Print the warnign and error from tool_pluginskel to the user
-    
-    printf "\n\n%s\n" "$result"
-    printf "\nYour plugin is ready inside: %s, happy coding!\n" "$plugindir"
 }
 
+mpdk_newplugin_grunt() {
+        printf '{\n    "name": "moodle-%s",\n    "private": true}' "$1" > "$2"/package.json
+        mpdk_ex "cd $3 && npm install --save-dev grunt grunt-contrib-less grunt-contrib-watch grunt-load-gruntfile >/dev/null 2>&1" 
+        #Adjust the reference to the global gruntfile
+        #gruntpath="$(echo "$relpath" | sed -r "s#[A-Za-z0-9-]+#\.\.#g")"Gruntfile.js
+        #cat "$ASSET"/gruntfile | sed "s+%relpath%+$gruntpath+g" > "$plugindir"/Gruntfile.js
+        clear
+}
 
 height=15
 width=60
@@ -232,7 +248,7 @@ EOF
 
 
  PLUGIN_FEATURES_DIALOG="$(cat <<EOF 
- --checklist "Select features (Space select, Enter confirm)" $height $width $listheight  
+--checklist "Select features (Space select, Enter confirm)" $height $width $listheight  
 "install" "db/install.php" ON 
 "uninstall" "db/uninstall.php" OFF 
 "settings" "settings.php" ON 
@@ -259,15 +275,7 @@ PLUGIN_PRIVACY_DIALOG="--menu \"Does your plugin store personal user data?\" $he
 "2017051500" "3.3" OFF 
 "2016120500" "3.2" OFF 
 "2016052300" "3.1" OFF 
-"2015111600" "3.0" OFF 
-"2015051100" "2.9" OFF 
-"2014111000" "2.8" OFF 
-"2014051200" "2.7" OFF 
-"2013111800" "2.6" OFF 
-"2013051400" "2.5" OFF 
-"2012120300" "2.4" OFF 
-"2012062500" "2.3" OFF 
-"2011120500" "2.2" OFF 
+"2015111600" "3.0" OFF
 EOF
 )"
 

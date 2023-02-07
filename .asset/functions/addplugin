@@ -16,7 +16,7 @@
 # along with Mpdk.  If not, see <http://www.gnu.org/licenses/>.
 
 mpdk_parser_definition_addplugin() {
-	setup   OARGS help:usage abbr:true -- '' "Usage: addplugin <name> <path>"
+	setup  OARGS help:usage abbr:true -- '' "Usage: addplugin <name> <path>"
 	msg -- 'Stop the instance (docker-compose stop)'
 	msg -- '' 'Options:'
     flag ALL -a --all -- "Stop all running instance"
@@ -29,13 +29,20 @@ mpdk_parser_definition_addplugin() {
 mpdk_addplugin() {
     eval "$(getoptions mpdk_parser_definition_addplugin parse "$0")"
     parse "$@"
-    eval "set -- $OARGS";shift
-    name=$1
-    path=$2
-    if [ -z "$path" ] || [ -z "$name" ]; then
-        printf "\nExepcting 2 argument: <component name> <relative path>"
+    set $1
+    if [ -z "$1" ] || [ -z "$2" ]; then
+        mpdk_error "\nExepcting at least 2 argument: <component name> <relative path> [<instance_name>]"
         exit 1
     fi
-    printf "%s %s\n" "$name" "$path" >> "$ASSET"/myplugin
-    printf "\nPlugin '%s', relative path '%s' has been added to the list\n" "$name" "$path"
+    export CONFIG_FILE="$ASSET/myplugin"
+    if config_has_key $1;then
+        if [ -n $3 ]; then
+            mpdk_addplugin_toinstance $1 $3
+        else
+            mpdk_error "Plugin $1 already added!"
+        fi
+    else
+        config_set $1 $2
+    fi
+    mpdk_success "Plugin '%s', relative path '%s' has been added to the list $1 $2 $3"
 }

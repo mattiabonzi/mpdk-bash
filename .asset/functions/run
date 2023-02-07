@@ -37,25 +37,21 @@ mpdk_run() {
     #Parse local options
     eval "$(getoptions mpdk_parser_definition_run parse "$0")"
     parse "$@"
-    # shellcheck source=/dev/null  
-    [ -f "$IROOT/env" ] && source "$MPDK_ROOT/env"
-    logfile="$IROOT/../up$(date +%s).log"
     #Sanity check
     [ -z "$IROOT" ] && printf "\nA path to the instance is reuiqred" && exit 1
     portmessage="port is not free, choose another one or stop the service using this port: "
     [ -n "$(lsof -i tcp:"$WEBPORT" -s tcp:listen)" ] && printf "\nWeb $portmessage %s" "$WEBPORT" && exit
     [ -n "$(lsof -i tcp:"$DBPORT" -s tcp:listen)" ] && printf "\nDatabase $portmessage %s" "$DBPORT" && exit
     #Export web/db port ENV for moodle-docker
-    export MOODLE_DOCKER_WEB_PORT="$WEBPORT"
-    export MOODLE_DOCKER_DB_PORT="$DBPORT"
+    export MOODLE_DOCKER_WEB_PORT="${WEBPORT:-MOODLE_DOCKER_WEB_PORT}"
+    export MOODLE_DOCKER_DB_PORT="${DBPORT:-MOODLE_DOCKER_DB_PORT}"
     #Use the config.php file bundled with moodle-docker
-    cp "$ASSET"/moodle-docker/config.docker-template.php "$MOODLE_DOCKER_WWWROOT"/config.php
-    #Compose up
-    "$ASSET"/moodle-docker/bin/moodle-docker-compose --ansi never build --build-arg PHP_VERSION=$MOODLE_DOCKER_PHP_VERSION >> "$logfile" 2>&1 & mpdk_spinner $!
-    "$ASSET"/moodle-docker/bin/moodle-docker-compose --ansi never up --no-build -d >> "$logfile" 2>&1 & mpdk_spinner $!
+    cp "$ASSET/moodle-docker/config.docker-template.php" "$IROOT/config.php"
+    #Compose up 
+    "$ASSET/moodle-docker/bin/moodle-docker-compose" --ansi never up -d >> "$MPDK_LOGFILE" 2>&1 
    
     #Wait for DB (maybe useless for pgsql, here for safety)
-    "$ASSET"/moodle-docker/bin/moodle-docker-wait-for-db >> "$logfile" 2>&1 & mpdk_spinner $!
+    "$ASSET"/moodle-docker/bin/moodle-docker-wait-for-db >> "$MPDK_LOGFILE" 2>&1 
     #Install moodle if necessary
     [[  -n "$DEV"  ]] && DEV='-d'
     [[  -n "$PHPUNIT"  ]] && PHPUNIT='-t'
@@ -68,8 +64,8 @@ mpdk_run() {
     #Show "docker ps" to the user
     "$ASSET"/moodle-docker/bin/moodle-docker-compose ps
     #Mark as initialized
-    printf "\nPiattaforma online http://localhost:%s" ""
-    printf "\nUser: admin   |    Passowrd: admin\n"    
+    mpdk_success "Piattaforma online http://localhost:$MOODLE_DOCKER_WEB_PORT"
+    mpdk_info "User: admin   |    Passowrd: admin"    
     #Open the browser only if it's a devinstance
     if [  -n "$DEV"  ] && [ -n "$OPEN" ]; then
         sleep 1

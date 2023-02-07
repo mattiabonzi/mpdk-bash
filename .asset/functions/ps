@@ -33,7 +33,7 @@ mpdk_ps() {
     if [[  -n "$ALL"  ]];then
         ilist="$(ls "$MPDK_ROOT")"
         for instance in $ilist;do
-            [ ! -d "$MPDK_ROOT/$instance/moodle" ] && continue
+            [ ! -d "$MPDK_ROOT/instances/$instance/moodle" ] && continue
             out="⎈ $instance\n\n"
             out+="$(mpdk -n "$instance" ps)"
             out+="\n------------------------------\n\n"

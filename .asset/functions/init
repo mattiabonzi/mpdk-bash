@@ -32,7 +32,6 @@ mpdk_init() {
     eval "$(getoptions mpdk_parser_definition_init parse "$0")"
     parse "$@"
     [ "$PHPUNIT" = '0' ] && [ "$BEHAT" = '0' ] && DEV=1
-    logfile="$IROOT/../init$(date +%s).log"
     #Check if already initialized 
     readydev=0;readyphpunit=0;readybehat=0
     if [ -f "$IROOT/.init" ];then
@@ -41,49 +40,52 @@ mpdk_init() {
         readydev="$1"
         readyphpunit="$2"
         readybehat="$3"
+    else 
+        #Set rollback string
+        mpdk_begin "rm -f $IROOT/.init"
     fi
+    
     #Replace "_" with " " from the instance name to use as Moodle title
-    moodle_desc="$(basename "$(dirname "$IROOT")"  | sed 's/_/ /g')"
+    moodle_desc="$(basename $IROOT  | sed 's/_/ /g')"
     #Install moodle if necessary
-    mpdk_init_dev "$readydev" "$DEV" "$moodle_desc" "$logfile" & 
-    mpdk_init_phpunit "$readyphpunit" "$PHPUNIT" "$logfile" &
-    mpdk_init_behat "$readybehat" "$BEHAT" "$logfile" &
+    mpdk_init_dev "$readydev" "$DEV" "$moodle_desc"  & 
+    mpdk_init_phpunit "$readyphpunit" "$PHPUNIT"  &
+    mpdk_init_behat "$readybehat" "$BEHAT" &
     wait
     [[ "$readydev" = '1' ]] &&  DEV=1
     [[ "$readyphpunit" = '1' ]] &&  PHPUNIT=1
     [[ "$readybehat" = '1' ]] &&  BEHAT=1
     printf "%s %s %s" "$DEV" "$PHPUNIT" "$BEHAT" > "$IROOT/.init"
+    mpdk_commit
 }
 
 mpdk_init_dev() {
-    if [ "$1" = '0' ] && [ "$2" = '1' ]; then
-        (mpdk_ex nvm install) >> "$4" 2>&1 & mpdk_spinner "$!" 
-        (mpdk_ex npm install) >> "$4" 2>&1 & mpdk_spinner "$!"
-        mpdk_ex php admin/cli/install_database.php \
-        --agree-license --fullname="$3" \
-        --shortname="$3" --summary="$3" --adminpass="admin" \
-        --adminemail="admin@example.com" >> "$4" 2>&1 &
-        mpdk_spinner "$!"
+    if [ "$1" = '0' ] && [ "$2" = '1' ]; then 
+        mpdk_ex nvm install >> "$MPDK_LOGFILE" 2>&1
+        mpdk_ex npm install >> "$MPDK_LOGFILE" 2>&1
+        mpdk_ex mv /opt/mpdk/assets/codechecker /var/www/html/local/codechecker
+        mpdk_ex mv /opt/mpdk/assets/moodlecheck  /var/www/html/local/moodlecheck
+        mpdk_ex mv /opt/mpdk/assets/pluginskel  /var/www/html/admin/tool/pluginskel
+        mpdk_ex php admin/cli/install_database.php --agree-license --fullname="$3" \
+        --shortname="$3" --summary="$3" --adminpass="admin" --adminemail="admin@example.com" >> "$MPDK_LOGFILE" 2>&1 
         #Install and enable xdebug
-        if [[ $MOODLE_DOCKER_PHP_VERSION = '8.0' ]];then
+        if [ "$MOODLE_DOCKER_PHP_VERSION" = "`echo -e "$VERSION\n8.0" | sort -V | sed -n '2p'`" ];then
         [[ $(uname -s) =~ .*'inux' ]] && xdebughost='localhost' || xdebughost='host.docker.internal'
             mpdk_ex 'printf "xdebug.mode = debug\nxdebug.client_host = '"$xdebughost"'\n" > /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini'
-            mpdk_ex docker-php-ext-enable xdebug >> "$4" 2>&1 & mpdk_spinner "$!" 
-            docker restart "$COMPOSE_PROJECT_NAME"-webserver-1 >> "$4" 2>&1 & mpdk_spinner "$!" 
+            mpdk_ex docker-php-ext-enable xdebug >> "$MPDK_LOGFILE" 2>&1 
+            docker restart $MPDK_WEBSERVER >> "$MPDK_LOGFILE" 2>&1 
         fi
     fi
 }
 
 mpdk_init_phpunit() {
     if [ "$1" = '0' ] && [ "$2" = '1' ]; then
-        mpdk_ex php admin/tool/phpunit/cli/init.php >> "$3" 2>&1 &
-        mpdk_spinner "$!"
+        mpdk_ex php admin/tool/phpunit/cli/init.php >> "$MPDK_LOGFILE" 2>&1
     fi
 }
 
 mpdk_init_behat() {
     if [ "$1" = '0' ] && [ "$2" = '1' ]; then
-        mpdk_ex php admin/tool/behat/cli/init.php >> "$3" 2>&1 &
-        mpdk_spinner "$!"
+        mpdk_ex php admin/tool/behat/cli/init.php >> "$MPDK_LOGFILE" 2>&1
     fi
 }

@@ -23,6 +23,7 @@ mpdk_parser_definition_download_moodle() {
 	param VERSION  -v --version -- "Moodle version (x.x.x or x.x for latest stable)"
     flag NOCACHE -c --no-cache -- "Disable local cache"
     flag returnurl -u --returl-url -- "Return url instead of download (for testing)"
+    flag returnversion -V --returl-version -- "Return version instead of download (for testing)"
 	disp :usage  -h --help -- "Display this screen" 
 }
 
@@ -30,8 +31,11 @@ mpdk_download_moodle() {
     #Parse local options
     eval "$(getoptions mpdk_parser_definition_download_moodle parse "$0")"
     parse "$@"
+    
     if [ -z "$VERSION" ];then
         link="$( wget -q  -O - https://download.moodle.org/releases/latest/ | grep -o "https://download\.moodle\.org/download\.php/stable\d\+/moodle-[A-Za-z0-9\.-]\+\.zip" | head -1 | sed 's+stable+direct/stable+g')"
+        VERSION=$(echo "https://download.moodle.org/download.php/direct/stable401/moodle-latest-401.zip" | grep -o "moodle-.*\.zip")
+        VERSION=${VERSION:7:$((${#VERSION}-11))}
     else
         if [[ "${VERSION:0:1}" = 4 ]];then
             branch=$(echo "$VERSION" | cut -d '.' -f1,2 | tr '.' 0)
@@ -45,6 +49,9 @@ mpdk_download_moodle() {
             link="https://download.moodle.org/download.php/direct/stable${branch}/moodle-$VERSION.zip"
         elif [[ $VERSION =~ ^[0-9]+\.[0-9]+$ ]];then
             link="https://download.moodle.org/download.php/direct/stable${branch}/moodle-latest-${branch}.zip"
+        elif [ ${VERSION:0:6} -eq "latest" ]; then
+            branch=${VERSION:7}
+            link="https://download.moodle.org/download.php/direct/stable${branch}/moodle-latest-${branch}.zip"
         else
             mpdk_error "Use syntax 'x.x' or 'x.x.x' to specify the version"
         fi
@@ -52,6 +59,8 @@ mpdk_download_moodle() {
     msg="Unable to build a valid url, use syntax 'x.x' or 'x.x.x' to specify the version"
     [ -z "$link" ] && mpdk_error "$msg"
     [ -n "$returnurl" ] && echo "$link" && exit 0
+    [ -n "$returnversion" ] && echo "$link $VERSION" && exit 0
+    returnversion
 
     if [ -n "$NOCACHE" ];then
         wget --quiet "$link"
@@ -65,16 +74,16 @@ mpdk_call_wget() {
     #Get the url from the argument passed to wget
     url="$(echo "$@" | sed 's/.*\(https.*tgz\).*/\1/')"
     #Get the filename from the url
-    filename="$(basename "$url")"
+    filename="moodle.zip"
     #Get the hash of the url
-    hash="$(echo "$url" | md5)"
+    hash="$(basename $url)_$(echo $url | md5)"
     #Check the cache
     if [ -d "$ASSET"/cache/"$hash" ];then
         #Copy the file from the cache
         cp -r "$ASSET"/cache/"$hash"/"$filename" ./"$filename"
     else
         #Download the file using wget and the original argument
-        wget --quiet "$@"
+        wget --quiet -O "$filename" "$@"
         #Create the entry inside the cache dir
         mkdir "$ASSET"/cache/"$hash"/
         #Copy the archive in the cache

@@ -28,7 +28,7 @@ mpdk_myplugin() {
         set "$line"
         o+="$2 $1\n"
         for instance in $ilist;do
-            vfile="$MPDK_ROOT/$instance/moodle/$2/$1/version.php"
+            vfile="$MPDK_ROOT/instances/$instance/moodle/$2/$1/version.php"
             if [ -f "$vfile" ];then
                 # shellcheck disable=2154 
                 cmd="define(\"MOODLE_INTERNAL\", 1); @include \"$vfile\"; echo $plugin->version;"

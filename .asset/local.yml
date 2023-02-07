@@ -1,5 +1,17 @@
 version: "2"
 services:
   webserver:
-      build: .
-      image: moodle-php-apache-python-node:${MOODLE_DOCKER_PHP_VERSION:-8.0}
+      build:
+        context: .
+        args:
+          MOODLE_LINK: ${MOODLE_DOCKER_LINK}
+          MPDK_PHP_VERSION: ${MOODLE_DOCKER_PHP_VERSION}
+      image: moodle-php-apache-python-node:${MOODLE_DOCKER_PHP_VERSION}_${MOODLE_DOCKER_VERSION}
+      environment:
+        MOODLE_DOCKER_DBPASS: "moodle"
+      volumes:
+        - "${IROOT}/config.php:/var/www/html/config.php"
+        - "${MPDK_ROOT}/plugin:/opt/mpdk/myplugins"
+  db:
+    environment:
+      POSTGRES_PASSWORD: "moodle"

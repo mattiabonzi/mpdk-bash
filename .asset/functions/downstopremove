@@ -85,7 +85,7 @@ mpdk_downstopremove() {
     
     #If not "-f" (force) ask confirmation to the user
     if [ -z "$ALL" ] && [ -z "$STOP" ] && [ -z "$FORCE" ]; then
-        instance=$(basename "$(dirname "$IROOT")")
+        instance="$(basename $IROOT)"
         msg="$( [  -n "$REMOVE"  ] && echo 'and ALL THE CODE' || echo '(not the code)')"
         q="Are you sure? All the data $msg of the instance '$instance' will be lost forever, do you want to continue? (y/n) : "
         mpdk_confirmation  "$q" "Aborting..., use \"stop\" to stop the instance without losing data"
@@ -93,11 +93,11 @@ mpdk_downstopremove() {
     [ -n "$FORCE" ] && FORCE="-f"
     #If -a (all) down/remove/stop all the instances
     if [ -n "$ALL" ];then
-        [ -z "$STOP" ] && printf "You will be asked to confirm for each instance...\n"
-        ilist="$(ls "$MPDK_ROOT")"
+        [ -z "$STOP" ] && mpdk_warning "You will be asked to confirm for each instance..."
+        ilist="$(ls "$MPDK_ROOT/instances")"
         msg='Nothing to do...'
         for instance in $ilist;do
-            [ ! -f "$MPDK_ROOT/$instance/mpdkinstance.env" ] && continue
+            [ ! -f "$MPDK_ROOT/instances/$instance/mpdkinstance.env" ] && continue
             if [ -n "$STOP" ];then
                 [ -z "$(mpdk_isrunning "$(mpdk -n "$instance" ps)")" ] && continue
                 mpdk -n "$instance" stop
@@ -106,25 +106,22 @@ mpdk_downstopremove() {
                 mpdk -n "$instance" remove "$FORCE"
                 msg='All non running instances have been deleted!'
             else
-                [ ! -f "$MPDK_ROOT/$instance/moodle/.init" ] && continue
+                [ ! -f "$MPDK_ROOT/instances/$instance/.init" ] && continue
                 mpdk -n "$instance" down "$FORCE"
                 msg='All instances have been taken down'
             fi
         done
-        printf "\n%s" "$msg"
+        mpdk_success "$msg"
     else
         #Down/remove/stop this instance
-        [ -z "$IROOT" ] && mpdk_error "An instance must be defined, use -a for all or specify one"
-        mpdk_requireinstance
+        [ -z "$IROOT" ] && mpdk_requireinstance "An instance must be defined or use -a for all or specify one, try -h for help"
         if [ -n "$STOP" ];then
             mpdk_requirerunning
             "$ASSET"/moodle-docker/bin/moodle-docker-compose stop
         elif [ -n "$REMOVE" ];then
-            if [ -n "$(mpdk_isinit)" ];then
-                "Cannot delete the instance, run 'mpdk down' first"
-                exit 1
-            fi
-            rm -rf "$IROOT"
+        
+            [ -n "$(mpdk_isinit)" ] && mpdk_error "Cannot delete the instance, run 'mpdk down' first"
+            rm -rf "$IROOT" 
         else
             mpdk_requireinit
             "$ASSET"/moodle-docker/bin/moodle-docker-compose down 

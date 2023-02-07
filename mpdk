@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Mpdk.  If not, see <http://www.gnu.org/licenses/>.
 
+set -e
 # shellcheck disable=SC2034
 MPDK_VERSION="0.2.0 (Beta)"
 #This file
@@ -41,6 +42,7 @@ DBPORT=8001
 #Load getoptions (github.com/ko1nksm/getoptions)
 # shellcheck source=.asset/lib/getoptions.sh
 source "$ASSET"/lib/getoptions.sh
+source "$ASSET"/lib/bashly_config.sh
 #Load functions
 for func in "$ASSET"/functions/*;do
     # shellcheck source=/dev/null
@@ -54,8 +56,7 @@ if [ -d "$ASSET"/userfunctions/ ];then
     done
 fi
 
-trap 'kill $(jobs -p) 2>&1 > /dev/null; wait; echo "Cancelling...!";' SIGINT SIGTERM SIGUSR1
-
+trap "echo 'Canceling...';killall background 2>/dev/null;exit 255" SIGINT
 # shellcheck disable=SC1083,SC2317
 mpdk_parser_definition() {
 	setup   OARGS help:usage abbr:true width:"35,18" -- '' "Usage: mpdk [global options...] <command> [options...] [arguments...]"
@@ -67,6 +68,7 @@ mpdk_parser_definition() {
 	disp :usage -h --help -- "Display this screen"
 	disp :mpdk_extendedhelp -H --exthelp -- "Open documentaion (requires a connection)"
 	disp VERSION -v --version -- "Show installed version"
+    flag MPDK_DEBUG -x --debug -- "Enable debug mode"
 
 	msg -- '' "Commands:"
 	cmd install -- "Install the enviroment and download dependencies (execute just one time)"
@@ -92,22 +94,26 @@ eval "$(getoptions mpdk_parser_definition parse)"
 parse "$@"
 eval "set -- $OARGS"
 
+if [ -n "$MPDK_DEBUG" ];then
+    set -x
+    export PS4='[${BASH_SOURCE##*/}:$LINENO] '
+    export MPDK_DEBUG
+fi
+
 #If the instance root is NOT defined, try first to find it then to guess it
 if [ -z "$IROOT" ]; then
     if [ -n "$INSTANCE_NAME" ]; then 
-        IROOT="$MPDK_ROOT/${INSTANCE_NAME}/moodle";
+        IROOT="$MPDK_ROOT/instances/${INSTANCE_NAME}";
     elif [ -n "$INSTANCE_ROOT" ]; then
         IROOT="$INSTANCE_ROOT"
     elif [ -f "$(pwd)/mpdkinstance.env" ]; then
-       IROOT="$(pwd)/moodle"
-    elif [ -f "$(pwd)/../mpdkinstance.env" ]; then
-        IROOT="$(pwd)"
+       IROOT="$(pwd)/"
     else
         back="../"
         for (( i=1; i<=20; i++ ));do
             p="$(realpath "$(pwd)/$back")"
             if [ -f "$p/mpdkinstance.env" ]; then
-                IROOT="$p/moodle";break
+                IROOT="$p/";break
             fi
             back+='../'
         done
@@ -121,18 +127,23 @@ if  [ -n "$IROOT" ];then
     [ "${IROOT:${#IROOT}-1:1}" != '/' ] && IROOT+='/'
     mpdk_requireinstance
     # shellcheck source=/dev/null
-    source "$IROOT/../mpdkinstance.env"
+    set -a
+    source "$IROOT/mpdkinstance.env"
+    set +a
 fi
-
 #Use psql as default
 export MOODLE_DOCKER_DB=${MOODLE_DOCKER_DB:-'pgsql'}
+export MPDK=$THISFILE   
+export MPDK_DEFAULT_PHP_VERSION=8.1
+export MPDK_LOGFILE="$IROOT/log/mpdk_$(date +%s).log"
+export MPDK_WEBSERVER="$COMPOSE_PROJECT_NAME-webserver-1"
 #Eventually load the global env file
 # shellcheck source=/dev/null
 [ -f "$MPDK_ROOT/env" ] && source "$MPDK_ROOT/env"
 #Parse command
 
 case $1 in
-    new ) mpdk_new "$@" & mpdk_spinner $!;exit 0;;
+    new ) mpdk_new "$@" ;exit 0;;
     download-moodle ) mpdk_download_moodle "$@";exit 0;;
     install ) mpdk_install "$@";exit 0;;
     drop ) mpdk_drop "$@";exit 0;;
